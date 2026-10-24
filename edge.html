@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SigHeat · Mobile Edge Node</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
+    <style>
+      body {
+        font-family: "Segoe UI", sans-serif;
+        background: #0f172a;
+        color: #f8fafc;
+        padding: 20px;
+      }
+      .container {
+        max-width: 500px;
+        margin: 0 auto;
+      }
+      h2 {
+        color: #38bdf8;
+        text-align: center;
+      }
+      .card {
+        background: #1e293b;
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 15px;
+      }
+      label {
+        display: block;
+        margin-top: 10px;
+        color: #94a3b8;
+        font-size: 0.9em;
+      }
+      input,
+      select {
+        width: 100%;
+        padding: 10px;
+        margin-top: 5px;
+        border-radius: 6px;
+        border: 1px solid #334155;
+        background: #0f172a;
+        color: #fff;
+        box-sizing: border-box;
+      }
+      button {
+        width: 100%;
+        padding: 12px;
+        margin-top: 20px;
+        border: none;
+        border-radius: 8px;
+        font-weight: bold;
+        cursor: pointer;
+        font-size: 1em;
+      }
+      .btn-start {
+        background: #38bdf8;
+        color: #000;
+      }
+      .btn-stop {
+        background: #ef4444;
+        color: #fff;
+      }
+      .badge {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 15px;
+        font-weight: bold;
+        font-size: 0.85em;
+      }
+      .badge-off {
+        background: rgba(239, 68, 68, 0.2);
+        color: #ef4444;
+      }
+      .badge-on {
+        background: rgba(34, 197, 94, 0.2);
+        color: #22c55e;
+      }
+      .log-box {
+        background: #090d16;
+        padding: 10px;
+        border-radius: 6px;
+        font-family: monospace;
+        font-size: 0.8em;
+        height: 100px;
+        overflow-y: auto;
+        color: #38bdf8;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h2>📱 SigHeat Mobile Edge</h2>
+      <div class="card">
+        <label>Project ID Kelompok:</label>
+        <input type="text" id="project-id" value="sigheat_kelompok_07" />
+
+        <label>Pilih Peran Perangkat:</label>
+        <select id="device-role">
+          <option value="node1">Edge 1 (HP Area A)</option>
+          <option value="node2">Edge 2 (HP Area B)</option>
+        </select>
+
+        <button id="main-btn" class="btn-start" onclick="toggleTelemetry()">
+          Mulai Mengirim Telemetri
+        </button>
+      </div>
+
+      <div class="card">
+        <p>
+          Status MQTT:
+          <span id="mqtt-status" class="badge badge-off">Terputus</span>
+        </p>
+        <p>Latensi RTT: <strong id="lbl-rtt">-- ms</strong></p>
+        <p>Status Zona: <strong id="lbl-zone">--</strong></p>
+      </div>
+
+      <div class="card">
+        <label>Log Aktivitas:</label>
+        <div id="log" class="log-box">Menunggu start...</div>
+      </div>
+    </div>
+
+    <script>
+      let isRunning = false;
+      let client = null;
+      let timer = null;
+      let sequence = 0;
+      let currentRtt = 0;
+
+      function log(msg) {
+        const box = document.getElementById("log");
+        box.innerHTML += `<div>> ${msg}</div>`;
+        box.scrollTop = box.scrollHeight;
+      }
+
+      async function measurePing() {
+        const start = Date.now();
+        try {
+          await fetch("https://www.google.com/favicon.ico", {
+            mode: "no-cors",
+            cache: "no-store",
+          });
+          currentRtt = Date.now() - start;
+        } catch (e) {
+          currentRtt = 200;
+        }
+        document.getElementById("lbl-rtt").innerText = currentRtt + " ms";
+
+        let zone = "GOOD_ZONE";
+        if (currentRtt >= 80 && currentRtt < 180) zone = "MODERATE_ZONE";
+        else if (currentRtt >= 180) zone = "DEAD_ZONE";
+        document.getElementById("lbl-zone").innerText = zone;
+        return { rtt: currentRtt, zone: zone };
+      }
+
+      function toggleTelemetry() {
+        const btn = document.getElementById("main-btn");
+        const projectId = document.getElementById("project-id").value;
+        const role = document.getElementById("device-role").value;
+
+        if (!isRunning) {
+          const clientId =
+            "edge_" + role + "_" + Math.random().toString(16).substr(2, 6);
+          client = new Paho.MQTT.Client(
+            "broker.hivemq.com",
+            8884,
+            "/mqtt",
+            clientId,
+          );
+
+          client.onConnectionLost = (responseObject) => {
+            document.getElementById("mqtt-status").className =
+              "badge badge-off";
+            document.getElementById("mqtt-status").innerText = "Terputus";
+            log("Koneksi terputus: " + responseObject.errorMessage);
+          };
+
+          client.connect({
+            useSSL: true,
+            onSuccess: () => {
+              document.getElementById("mqtt-status").className =
+                "badge badge-on";
+              document.getElementById("mqtt-status").innerText = "Terhubung";
+              isRunning = true;
+              btn.className = "btn-stop";
+              btn.innerText = "Hentikan Telemetri";
+              log("Terhubung ke broker HiveMQ!");
+
+              timer = setInterval(async () => {
+                sequence++;
+                const metric = await measurePing();
+                const payload = {
+                  device_id: role,
+                  sequence: sequence,
+                  smoothed_rtt_ms: metric.rtt,
+                  status_zone: metric.zone,
+                  timestamp: Date.now(),
+                };
+
+                const topic = `sigheat/${projectId}/edge/${role}/telemetry`;
+                const message = new Paho.MQTT.Message(JSON.stringify(payload));
+                message.destinationName = topic;
+                client.send(message);
+                log(`Kirim #${sequence} | RTT: ${metric.rtt}ms`);
+              }, 2000);
+            },
+            onFailure: (err) => {
+              log("Gagal konek: " + err.errorMessage);
+            },
+          });
+        } else {
+          clearInterval(timer);
+          if (client) client.disconnect();
+          isRunning = false;
+          btn.className = "btn-start";
+          btn.innerText = "Mulai Mengirim Telemetri";
+          document.getElementById("mqtt-status").className = "badge badge-off";
+          document.getElementById("mqtt-status").innerText = "Terputus";
+          log("Telemetri dihentikan.");
+        }
+      }
+    </script>
+  </body>
+</html>

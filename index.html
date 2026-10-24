@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SigHeat · Dashboard Multi-Point Signal Mapper</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+      body {
+        font-family: "Segoe UI", sans-serif;
+        background: #0f172a;
+        color: #f8fafc;
+        padding: 20px;
+      }
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+      }
+      h1 {
+        color: #38bdf8;
+        text-align: center;
+      }
+      .card {
+        background: #1e293b;
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+      }
+      .status {
+        padding: 5px 10px;
+        border-radius: 5px;
+        font-weight: bold;
+      }
+      .good {
+        background: #22c55e22;
+        color: #22c55e;
+      }
+      .moderate {
+        background: #eab30822;
+        color: #eab308;
+      }
+      .dead {
+        background: #ef444422;
+        color: #ef4444;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>📡 SigHeat Dashboard</h1>
+      <div class="card grid">
+        <div>
+          <h3>Node 1 (Area A)</h3>
+          <p>
+            Status: <span id="st-node1" class="status good">Waiting...</span>
+          </p>
+          <p>Latency: <strong id="rtt-node1">-- ms</strong></p>
+        </div>
+        <div>
+          <h3>Node 2 (Area B)</h3>
+          <p>
+            Status: <span id="st-node2" class="status good">Waiting...</span>
+          </p>
+          <p>Latency: <strong id="rtt-node2">-- ms</strong></p>
+        </div>
+      </div>
+      <div class="card">
+        <canvas id="chart"></canvas>
+      </div>
+    </div>
+
+    <script>
+      const projectId = "sigheat_kelompok_07";
+      const ctx = document.getElementById("chart").getContext("2d");
+      const chart = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: [],
+          datasets: [
+            { label: "Node 1 (Area A)", borderColor: "#38bdf8", data: [] },
+            { label: "Node 2 (Area B)", borderColor: "#ef4444", data: [] },
+          ],
+        },
+      });
+
+      const client = new Paho.MQTT.Client(
+        "broker.hivemq.com",
+        8884,
+        "/mqtt",
+        "dash_" + Date.now(),
+      );
+      client.onMessageArrived = (msg) => {
+        const data = JSON.parse(msg.payloadString);
+        const time = new Date().toLocaleTimeString();
+
+        if (data.device_id === "node1") {
+          document.getElementById("rtt-node1").innerText =
+            data.smoothed_rtt_ms + " ms";
+          updateStatus("st-node1", data.status_zone);
+        } else if (data.device_id === "node2") {
+          document.getElementById("rtt-node2").innerText =
+            data.smoothed_rtt_ms + " ms";
+          updateStatus("st-node2", data.status_zone);
+        }
+
+        if (chart.data.labels.length > 10) {
+          chart.data.labels.shift();
+          chart.data.datasets[0].data.shift();
+          chart.data.datasets[1].data.shift();
+        }
+        chart.data.labels.push(time);
+        if (data.device_id === "node1")
+          chart.data.datasets[0].data.push(data.smoothed_rtt_ms);
+        if (data.device_id === "node2")
+          chart.data.datasets[1].data.push(data.smoothed_rtt_ms);
+        chart.update();
+      };
+
+      client.connect({
+        useSSL: true,
+        onSuccess: () => {
+          client.subscribe(`sigheat/${projectId}/edge/+/telemetry`);
+        },
+      });
+
+      function updateStatus(id, zone) {
+        const el = document.getElementById(id);
+        el.innerText = zone;
+        el.className =
+          "status " +
+          (zone === "GOOD_ZONE"
+            ? "good"
+            : zone === "MODERATE_ZONE"
+              ? "moderate"
+              : "dead");
+      }
+    </script>
+  </body>
+</html>
