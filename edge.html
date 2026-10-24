@@ -127,6 +127,7 @@
       let timer = null;
       let sequence = 0;
       let currentRtt = 0;
+      let activeRole = "";
 
       function log(msg) {
         const box = document.getElementById("log");
@@ -169,56 +170,121 @@
             clientId,
           );
 
+          // Topik khusus untuk pengecekan presence / status aktif perangkat
+          const presenceTopic = `sigheat/${projectId}/presence/${role}`;
+
           client.onConnectionLost = (responseObject) => {
             document.getElementById("mqtt-status").className =
               "badge badge-off";
             document.getElementById("mqtt-status").innerText = "Terputus";
             log("Koneksi terputus: " + responseObject.errorMessage);
+            stopEverything();
+          };
+
+          // Handler saat menerima pesan dari broker (untuk cek apakah role sudah ada yang pakai)
+          let roleCheckTimeout = null;
+          let isRoleTaken = false;
+
+          client.onMessageArrived = (msg) => {
+            if (msg.destinationName === presenceTopic) {
+              const data = JSON.parse(msg.payloadString);
+              // Jika ada pesan presence dari client ID lain dengan role yang sama
+              if (data.status === "ONLINE" && data.client_id !== clientId) {
+                isRoleTaken = true;
+                alert(
+                  `Peran "${role}" sedang digunakan oleh perangkat lain (${data.device_name || "Edge Device"}). Silakan pilih peran lain!`,
+                );
+                log(`Gagal: Peran ${role} sudah aktif di perangkat lain.`);
+                clearTimeout(roleCheckTimeout);
+                client.disconnect();
+              }
+            }
           };
 
           client.connect({
             useSSL: true,
             onSuccess: () => {
-              document.getElementById("mqtt-status").className =
-                "badge badge-on";
-              document.getElementById("mqtt-status").innerText = "Terhubung";
-              isRunning = true;
-              btn.className = "btn-stop";
-              btn.innerText = "Hentikan Telemetri";
-              log("Terhubung ke broker HiveMQ!");
+              log("Terhubung ke broker, memverifikasi peran...");
+              client.subscribe(presenceTopic);
 
-              timer = setInterval(async () => {
-                sequence++;
-                const metric = await measurePing();
-                const payload = {
-                  device_id: role,
-                  sequence: sequence,
-                  smoothed_rtt_ms: metric.rtt,
-                  status_zone: metric.zone,
-                  timestamp: Date.now(),
-                };
+              // Kirim sinyal presence bahwa perangkat ini ingin memakai role tersebut
+              const presenceMsg = new Paho.MQTT.Message(
+                JSON.stringify({
+                  status: "ONLINE",
+                  client_id: clientId,
+                  device_name: role,
+                }),
+              );
+              presenceMsg.destinationName = presenceTopic;
+              presenceMsg.retained = true; // Simpan status di broker agar terbaca perangkat lain
+              client.send(presenceMsg);
 
-                const topic = `sigheat/${projectId}/edge/${role}/telemetry`;
-                const message = new Paho.MQTT.Message(JSON.stringify(payload));
-                message.destinationName = topic;
-                client.send(message);
-                log(`Kirim #${sequence} | RTT: ${metric.rtt}ms`);
-              }, 2000);
+              // Tunggu 1 detik untuk memastikan tidak ada tabrakan role
+              roleCheckTimeout = setTimeout(() => {
+                if (isRoleTaken) return;
+
+                document.getElementById("mqtt-status").className =
+                  "badge badge-on";
+                document.getElementById("mqtt-status").innerText = "Terhubung";
+                isRunning = true;
+                activeRole = role;
+                btn.className = "btn-stop";
+                btn.innerText = "Hentikan Telemetri";
+                log(
+                  `Berhasil mengunci peran ${role}! Mulai mengirim telemetri.`,
+                );
+
+                // Mulai kirim data telemetri berkala
+                timer = setInterval(async () => {
+                  sequence++;
+                  const metric = await measurePing();
+                  const payload = {
+                    device_id: role,
+                    sequence: sequence,
+                    smoothed_rtt_ms: metric.rtt,
+                    status_zone: metric.zone,
+                    timestamp: Date.now(),
+                  };
+
+                  const topic = `sigheat/${projectId}/edge/${role}/telemetry`;
+                  const message = new Paho.MQTT.Message(
+                    JSON.stringify(payload),
+                  );
+                  message.destinationName = topic;
+                  client.send(message);
+                  log(`Kirim #${sequence} | RTT: ${metric.rtt}ms`);
+                }, 2000);
+              }, 1000);
             },
             onFailure: (err) => {
               log("Gagal konek: " + err.errorMessage);
             },
           });
         } else {
-          clearInterval(timer);
-          if (client) client.disconnect();
-          isRunning = false;
-          btn.className = "btn-start";
-          btn.innerText = "Mulai Mengirim Telemetri";
-          document.getElementById("mqtt-status").className = "badge badge-off";
-          document.getElementById("mqtt-status").innerText = "Terputus";
-          log("Telemetri dihentikan.");
+          // Kirim pesan offline/kosong (retained) agar status role kembali kosong di broker
+          if (client && client.isConnected()) {
+            const presenceTopic = `sigheat/${projectId}/presence/${activeRole}`;
+            const offlineMsg = new Paho.MQTT.Message(
+              JSON.stringify({ status: "OFFLINE", client_id: "" }),
+            );
+            offlineMsg.destinationName = presenceTopic;
+            offlineMsg.retained = true;
+            client.send(offlineMsg);
+          }
+          stopEverything();
+          log("Telemetri dihentikan dan peran dilepas.");
         }
+      }
+
+      function stopEverything() {
+        if (timer) clearInterval(timer);
+        if (client && client.isConnected()) client.disconnect();
+        isRunning = false;
+        const btn = document.getElementById("main-btn");
+        btn.className = "btn-start";
+        btn.innerText = "Mulai Mengirim Telemetri";
+        document.getElementById("mqtt-status").className = "badge badge-off";
+        document.getElementById("mqtt-status").innerText = "Terputus";
       }
     </script>
   </body>

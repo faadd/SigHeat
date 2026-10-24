@@ -4,8 +4,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SigHeat · Dashboard Multi-Point Signal Mapper</title>
+    <!-- Paho MQTT -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
+    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Chart.js Zoom Plugin -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.0.1/chartjs-plugin-zoom.min.js"></script>
+
     <style>
       body {
         font-family: "Segoe UI", sans-serif;
@@ -37,55 +42,158 @@
         border-radius: 5px;
         font-weight: bold;
       }
+      .waiting {
+        background: rgba(148, 163, 184, 0.2);
+        color: #94a3b8;
+      }
       .good {
-        background: #22c55e22;
+        background: rgba(34, 197, 94, 0.2);
         color: #22c55e;
       }
       .moderate {
-        background: #eab30822;
+        background: rgba(234, 179, 8, 0.2);
         color: #eab308;
       }
       .dead {
-        background: #ef444422;
+        background: rgba(239, 68, 68, 0.2);
         color: #ef4444;
+      }
+      .controls {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 15px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      button {
+        padding: 10px 15px;
+        border: none;
+        border-radius: 6px;
+        font-weight: bold;
+        cursor: pointer;
+      }
+      .btn-start {
+        background: #22c55e;
+        color: #fff;
+      }
+      .btn-stop {
+        background: #ef4444;
+        color: #fff;
+      }
+      .btn-reset {
+        background: #64748b;
+        color: #fff;
+      }
+      .btn-zoom {
+        background: #334155;
+        color: #38bdf8;
+        border: 1px solid #38bdf8;
+      }
+      .btn-refresh {
+        background: #38bdf8;
+        color: #000;
+        margin-left: auto;
       }
     </style>
   </head>
   <body>
     <div class="container">
-      <h1>📡 SigHeat Dashboard</h1>
+      <div
+        style="
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        "
+      >
+        <h1>📡 SigHeat Dashboard</h1>
+        <button class="btn-refresh" onclick="location.reload()">
+          🔄 Refresh Dashboard
+        </button>
+      </div>
+
+      <!-- 1. PEMANTAUAN EDGE DEVICE (Real-time Status) -->
       <div class="card grid">
         <div>
           <h3>Node 1 (Area A)</h3>
           <p>
-            Status: <span id="st-node1" class="status good">Waiting...</span>
+            Status: <span id="st-node1" class="status waiting">Waiting...</span>
           </p>
           <p>Latency: <strong id="rtt-node1">-- ms</strong></p>
         </div>
         <div>
           <h3>Node 2 (Area B)</h3>
           <p>
-            Status: <span id="st-node2" class="status good">Waiting...</span>
+            Status: <span id="st-node2" class="status waiting">Waiting...</span>
           </p>
           <p>Latency: <strong id="rtt-node2">-- ms</strong></p>
         </div>
       </div>
+
+      <!-- 2. KONTROL GRAFIK & TOMBOL ZOOM -->
       <div class="card">
+        <h3>Grafik Latensi RTT</h3>
+        <div class="controls">
+          <button
+            id="btn-chart-toggle"
+            class="btn-start"
+            onclick="toggleChartMonitoring()"
+          >
+            Mulai Grafik
+          </button>
+          <button class="btn-zoom" onclick="zoomIn()">Zoom In (+)</button>
+          <button class="btn-zoom" onclick="zoomOut()">Zoom Out (-)</button>
+          <button class="btn-reset" onclick="resetZoomChart()">
+            Reset Zoom
+          </button>
+        </div>
         <canvas id="chart"></canvas>
       </div>
     </div>
 
     <script>
       const projectId = "sigheat_kelompok_07";
+      let isChartActive = false;
+      let chartTimer = null;
+
+      let nodeData = {
+        node1: { rtt: null, zone: "Waiting...", lastSeen: 0 },
+        node2: { rtt: null, zone: "Waiting...", lastSeen: 0 },
+      };
+
       const ctx = document.getElementById("chart").getContext("2d");
       const chart = new Chart(ctx, {
         type: "line",
         data: {
           labels: [],
           datasets: [
-            { label: "Node 1 (Area A)", borderColor: "#38bdf8", data: [] },
-            { label: "Node 2 (Area B)", borderColor: "#ef4444", data: [] },
+            {
+              label: "Node 1 (Area A)",
+              borderColor: "#38bdf8",
+              data: [],
+              fill: false,
+            },
+            {
+              label: "Node 2 (Area B)",
+              borderColor: "#ef4444",
+              data: [],
+              fill: false,
+            },
           ],
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            zoom: {
+              zoom: {
+                wheel: { enabled: true },
+                pinch: { enabled: true },
+                mode: "xy",
+              },
+            },
+          },
+          scales: {
+            y: { beginAtZero: true },
+          },
         },
       });
 
@@ -95,42 +203,120 @@
         "/mqtt",
         "dash_" + Date.now(),
       );
+
       client.onMessageArrived = (msg) => {
         const data = JSON.parse(msg.payloadString);
-        const time = new Date().toLocaleTimeString();
+        const now = Date.now();
 
         if (data.device_id === "node1") {
+          nodeData.node1.rtt = data.smoothed_rtt_ms;
+          nodeData.node1.zone = data.status_zone;
+          nodeData.node1.lastSeen = now;
           document.getElementById("rtt-node1").innerText =
             data.smoothed_rtt_ms + " ms";
           updateStatus("st-node1", data.status_zone);
         } else if (data.device_id === "node2") {
+          nodeData.node2.rtt = data.smoothed_rtt_ms;
+          nodeData.node2.zone = data.status_zone;
+          nodeData.node2.lastSeen = now;
           document.getElementById("rtt-node2").innerText =
             data.smoothed_rtt_ms + " ms";
           updateStatus("st-node2", data.status_zone);
         }
-
-        if (chart.data.labels.length > 10) {
-          chart.data.labels.shift();
-          chart.data.datasets[0].data.shift();
-          chart.data.datasets[1].data.shift();
-        }
-        chart.data.labels.push(time);
-        if (data.device_id === "node1")
-          chart.data.datasets[0].data.push(data.smoothed_rtt_ms);
-        if (data.device_id === "node2")
-          chart.data.datasets[1].data.push(data.smoothed_rtt_ms);
-        chart.update();
       };
+
+      setInterval(() => {
+        const now = Date.now();
+        if (now - nodeData.node1.lastSeen > 5000) {
+          nodeData.node1.rtt = null;
+          document.getElementById("rtt-node1").innerText = "-- ms";
+          updateStatus("st-node1", "WAITING");
+        }
+        if (now - nodeData.node2.lastSeen > 5000) {
+          nodeData.node2.rtt = null;
+          document.getElementById("rtt-node2").innerText = "-- ms";
+          updateStatus("st-node2", "WAITING");
+        }
+      }, 1000);
+
+      // Fungsi Jalankan/Hentikan Grafik dengan Memori localStorage
+      function startChartLoop(saveState = true) {
+        isChartActive = true;
+        const btn = document.getElementById("btn-chart-toggle");
+        btn.className = "btn-stop";
+        btn.innerText = "Hentikan Grafik";
+        if (saveState) localStorage.setItem("sigheat_chart_running", "true");
+
+        if (!chartTimer) {
+          chartTimer = setInterval(() => {
+            const time = new Date().toLocaleTimeString();
+
+            if (chart.data.labels.length > 15) {
+              chart.data.labels.shift();
+              chart.data.datasets[0].data.shift();
+              chart.data.datasets[1].data.shift();
+            }
+
+            chart.data.labels.push(time);
+            chart.data.datasets[0].data.push(nodeData.node1.rtt);
+            chart.data.datasets[1].data.push(nodeData.node2.rtt);
+            chart.update();
+          }, 2000);
+        }
+      }
+
+      function stopChartLoop(saveState = true) {
+        isChartActive = false;
+        const btn = document.getElementById("btn-chart-toggle");
+        btn.className = "btn-start";
+        btn.innerText = "Mulai Grafik";
+        if (saveState) localStorage.removeItem("sigheat_chart_running");
+
+        if (chartTimer) {
+          clearInterval(chartTimer);
+          chartTimer = null;
+        }
+      }
+
+      function toggleChartMonitoring() {
+        if (!isChartActive) {
+          startChartLoop(true);
+        } else {
+          stopChartLoop(true);
+        }
+      }
+
+      function zoomIn() {
+        chart.zoom(1.1);
+      }
+
+      function zoomOut() {
+        chart.zoom(0.9);
+      }
+
+      function resetZoomChart() {
+        chart.resetZoom();
+      }
 
       client.connect({
         useSSL: true,
         onSuccess: () => {
           client.subscribe(`sigheat/${projectId}/edge/+/telemetry`);
+
+          // Cek apakah sebelumnya grafik sedang berjalan sebelum di-refresh
+          if (localStorage.getItem("sigheat_chart_running") === "true") {
+            startChartLoop(false);
+          }
         },
       });
 
       function updateStatus(id, zone) {
         const el = document.getElementById(id);
+        if (zone === "WAITING" || zone === "Waiting...") {
+          el.innerText = "Waiting...";
+          el.className = "status waiting";
+          return;
+        }
         el.innerText = zone;
         el.className =
           "status " +
