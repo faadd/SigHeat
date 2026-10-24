@@ -161,17 +161,19 @@
         const role = document.getElementById("device-role").value;
 
         if (!isRunning) {
-          const clientId =
+          // Buat Unique Client ID untuk tiap perangkat yang membuka halaman
+          const uniqueId =
             "edge_" + role + "_" + Math.random().toString(16).substr(2, 6);
           client = new Paho.MQTT.Client(
             "broker.hivemq.com",
             8884,
             "/mqtt",
-            clientId,
+            uniqueId,
           );
 
-          // Topik khusus untuk pengecekan presence / status aktif perangkat
           const presenceTopic = `sigheat/${projectId}/presence/${role}`;
+          let roleCheckTimeout = null;
+          let isRoleTaken = false;
 
           client.onConnectionLost = (responseObject) => {
             document.getElementById("mqtt-status").className =
@@ -181,20 +183,27 @@
             stopEverything();
           };
 
-          // Handler saat menerima pesan dari broker (untuk cek apakah role sudah ada yang pakai)
-          let roleCheckTimeout = null;
-          let isRoleTaken = false;
-
           client.onMessageArrived = (msg) => {
             if (msg.destinationName === presenceTopic) {
               const data = JSON.parse(msg.payloadString);
-              // Jika ada pesan presence dari client ID lain dengan role yang sama
-              if (data.status === "ONLINE" && data.client_id !== clientId) {
+              const now = Date.now();
+
+              // ATURAN VALIDASI:
+              // 1. Status harus ONLINE
+              // 2. Client ID di dalam pesan BERBEDA dengan milik perangkat ini (artinya punya perangkat lain)
+              // 3. Pesan masih baru (< 5 detik)
+              if (
+                data.status === "ONLINE" &&
+                data.client_id !== uniqueId &&
+                now - data.timestamp < 5000
+              ) {
                 isRoleTaken = true;
                 alert(
-                  `Peran "${role}" sedang digunakan oleh perangkat lain (${data.device_name || "Edge Device"}). Silakan pilih peran lain!`,
+                  `Peran "${role}" sedang digunakan oleh perangkat lain! Silakan pilih peran lain.`,
                 );
-                log(`Gagal: Peran ${role} sudah aktif di perangkat lain.`);
+                log(
+                  `Gagal: Peran ${role} sudah aktif digunakan perangkat lain.`,
+                );
                 clearTimeout(roleCheckTimeout);
                 client.disconnect();
               }
@@ -204,22 +213,22 @@
           client.connect({
             useSSL: true,
             onSuccess: () => {
-              log("Terhubung ke broker, memverifikasi peran...");
+              log("Terhubung, memeriksa ketersediaan peran...");
               client.subscribe(presenceTopic);
 
-              // Kirim sinyal presence bahwa perangkat ini ingin memakai role tersebut
+              // Kirim sinyal presence dengan menyertakan uniqueId perangkat ini
               const presenceMsg = new Paho.MQTT.Message(
                 JSON.stringify({
                   status: "ONLINE",
-                  client_id: clientId,
-                  device_name: role,
+                  client_id: uniqueId,
+                  timestamp: Date.now(),
                 }),
               );
               presenceMsg.destinationName = presenceTopic;
-              presenceMsg.retained = true; // Simpan status di broker agar terbaca perangkat lain
+              presenceMsg.retained = true;
               client.send(presenceMsg);
 
-              // Tunggu 1 detik untuk memastikan tidak ada tabrakan role
+              // Beri jeda 1 detik untuk mendengarkan apakah ada perangkat lain yang merespons
               roleCheckTimeout = setTimeout(() => {
                 if (isRoleTaken) return;
 
@@ -234,7 +243,6 @@
                   `Berhasil mengunci peran ${role}! Mulai mengirim telemetri.`,
                 );
 
-                // Mulai kirim data telemetri berkala
                 timer = setInterval(async () => {
                   sequence++;
                   const metric = await measurePing();
@@ -261,18 +269,21 @@
             },
           });
         } else {
-          // Kirim pesan offline/kosong (retained) agar status role kembali kosong di broker
           if (client && client.isConnected()) {
             const presenceTopic = `sigheat/${projectId}/presence/${activeRole}`;
             const offlineMsg = new Paho.MQTT.Message(
-              JSON.stringify({ status: "OFFLINE", client_id: "" }),
+              JSON.stringify({
+                status: "OFFLINE",
+                client_id: "",
+                timestamp: Date.now(),
+              }),
             );
             offlineMsg.destinationName = presenceTopic;
             offlineMsg.retained = true;
             client.send(offlineMsg);
           }
           stopEverything();
-          log("Telemetri dihentikan dan peran dilepas.");
+          log("Telemetri dihentikan.");
         }
       }
 
