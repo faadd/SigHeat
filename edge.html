@@ -63,6 +63,36 @@
       class="fixed inset-0 bg-grid-pattern opacity-60 pointer-events-none z-0"
     ></div>
 
+    <!-- MODAL CUSTOM PERINGATAN (Ganti Alert Bawaan Browser) -->
+    <div
+      id="custom-modal"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm hidden px-4"
+    >
+      <div
+        class="glass-panel rounded-3xl p-6 max-w-sm w-full border border-rose-500/30 shadow-2xl text-center space-y-4 animate-in fade-in zoom-in duration-200"
+      >
+        <div
+          class="w-12 h-12 rounded-2xl bg-rose-500/20 text-rose-400 border border-rose-500/30 flex items-center justify-center mx-auto"
+        >
+          <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <h3 class="text-lg font-bold text-white mb-1">
+            Peran Sedang Digunakan
+          </h3>
+          <p id="modal-message" class="text-xs text-slate-400 leading-relaxed">
+            Peran ini sedang aktif digunakan oleh perangkat lain.
+          </p>
+        </div>
+        <button
+          onclick="closeModal()"
+          class="w-full py-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs tracking-wider uppercase transition-all shadow-lg shadow-amber-500/20"
+        >
+          Mengerti, Pilih Peran Lain
+        </button>
+      </div>
+    </div>
+
     <div class="max-w-md mx-auto px-4 pt-8 relative z-10">
       <!-- Header -->
       <header
@@ -116,7 +146,6 @@
             <i data-lucide="cpu" class="w-3.5 h-3.5 text-amber-400"></i> Pilih
             Peran Perangkat
           </label>
-          <!-- Perangkat select ini akan otomatis terkunci saat perangkat sedang berjalan -->
           <select
             id="device-role"
             class="w-full bg-slate-950/60 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-amber-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -220,6 +249,15 @@
         box.scrollTop = box.scrollHeight;
       }
 
+      function showModal(message) {
+        document.getElementById("modal-message").innerText = message;
+        document.getElementById("custom-modal").classList.remove("hidden");
+      }
+
+      function closeModal() {
+        document.getElementById("custom-modal").classList.add("hidden");
+      }
+
       async function measurePing() {
         const start = Date.now();
         try {
@@ -287,8 +325,8 @@
 
               setTimeout(() => {
                 if (activeSenderId !== null) {
-                  alert(
-                    `PERINGATAN: Peran ${role} sedang digunakan oleh perangkat lain (${activeSenderId})! Silakan pilih peran lain.`,
+                  showModal(
+                    `Peran ${role} sedang digunakan oleh perangkat lain (${activeSenderId})! Silakan pilih peran lain.`,
                   );
                   log(
                     `GAGAL: Peran ${role} sedang aktif digunakan oleh ${activeSenderId}.`,
@@ -300,7 +338,6 @@
                   return;
                 }
 
-                // Jalur bersih: Kunci dropdown peran agar tidak bisa diubah saat berjalan
                 roleSelect.disabled = true;
 
                 const statusEl = document.getElementById("mqtt-status");
@@ -344,7 +381,6 @@
             },
           });
         } else {
-          // Kirim sinyal OFFLINE agar peran langsung terbuka kembali secara instan
           if (client && client.isConnected()) {
             try {
               const topic = `sigheat/${projectId}/edge/${role}/telemetry`;
@@ -371,7 +407,6 @@
         isRunning = false;
         activeSenderId = null;
 
-        // Buka kembali kunci dropdown pilihan peran saat telemetri dihentikan
         const roleSelect = document.getElementById("device-role");
         if (roleSelect) {
           roleSelect.disabled = false;
