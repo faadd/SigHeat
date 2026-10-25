@@ -1,133 +1,217 @@
 <!doctype html>
-<html lang="id">
+<html lang="id" class="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SigHeat · Mobile Edge Node</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Paho MQTT -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
     <style>
+      @import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
+
       body {
-        font-family: "Segoe UI", sans-serif;
-        background: #0f172a;
-        color: #f8fafc;
-        padding: 20px;
+        background-color: #02040a;
+        color: #cbd5e1;
+        font-family: "Inter", sans-serif;
       }
-      .container {
-        max-width: 500px;
-        margin: 0 auto;
+
+      .bg-noise {
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
       }
-      h2 {
-        color: #38bdf8;
-        text-align: center;
+
+      .glass-panel {
+        background: rgba(15, 23, 42, 0.4);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow:
+          0 20px 50px rgba(0, 0, 0, 0.5),
+          inset 0 1px 0 rgba(255, 255, 255, 0.1);
       }
-      .card {
-        background: #1e293b;
-        padding: 20px;
-        border-radius: 10px;
-        margin-bottom: 15px;
-      }
-      label {
-        display: block;
-        margin-top: 10px;
-        color: #94a3b8;
-        font-size: 0.9em;
-      }
-      input,
-      select {
-        width: 100%;
-        padding: 10px;
-        margin-top: 5px;
-        border-radius: 6px;
-        border: 1px solid #334155;
-        background: #0f172a;
-        color: #fff;
-        box-sizing: border-box;
-      }
-      button {
-        width: 100%;
-        padding: 12px;
-        margin-top: 20px;
-        border: none;
-        border-radius: 8px;
-        font-weight: bold;
-        cursor: pointer;
-        font-size: 1em;
-      }
-      .btn-start {
-        background: #38bdf8;
-        color: #000;
-      }
-      .btn-stop {
-        background: #ef4444;
-        color: #fff;
-      }
-      .badge {
-        display: inline-block;
-        padding: 4px 10px;
-        border-radius: 15px;
-        font-weight: bold;
-        font-size: 0.85em;
-      }
-      .badge-off {
-        background: rgba(239, 68, 68, 0.2);
-        color: #ef4444;
-      }
-      .badge-on {
-        background: rgba(34, 197, 94, 0.2);
-        color: #22c55e;
-      }
-      .log-box {
-        background: #090d16;
-        padding: 10px;
-        border-radius: 6px;
-        font-family: monospace;
-        font-size: 0.8em;
-        height: 100px;
-        overflow-y: auto;
-        color: #38bdf8;
+
+      .bg-grid-pattern {
+        background-image:
+          linear-gradient(
+            to right,
+            rgba(255, 255, 255, 0.03) 1px,
+            transparent 1px
+          ),
+          linear-gradient(
+            to bottom,
+            rgba(255, 255, 255, 0.03) 1px,
+            transparent 1px
+          );
+        background-size: 24px 24px;
       }
     </style>
   </head>
-  <body>
-    <div class="container">
-      <h2>📱 SigHeat Mobile Edge</h2>
-      <div class="card">
-        <label>Project ID Kelompok:</label>
-        <input type="text" id="project-id" value="sigheat_kelompok_07" />
+  <body
+    class="min-h-screen relative overflow-x-hidden selection:bg-amber-500/30 text-slate-300 pb-12"
+  >
+    <div class="fixed inset-0 bg-noise pointer-events-none z-0"></div>
+    <div
+      class="fixed top-[10%] left-[10%] w-[400px] h-[400px] bg-amber-500/10 rounded-full blur-[130px] pointer-events-none z-0"
+    ></div>
+    <div
+      class="fixed bottom-[10%] right-[10%] w-[450px] h-[450px] bg-indigo-600/10 rounded-full blur-[140px] pointer-events-none z-0"
+    ></div>
+    <div
+      class="fixed inset-0 bg-grid-pattern opacity-60 pointer-events-none z-0"
+    ></div>
 
-        <label>Pilih Peran Perangkat:</label>
-        <select id="device-role">
-          <option value="node1">Edge 1 (HP Area A)</option>
-          <option value="node2">Edge 2 (HP Area B)</option>
-        </select>
+    <div class="max-w-md mx-auto px-4 pt-8 relative z-10">
+      <!-- Header -->
+      <header
+        class="flex items-center gap-3 mb-6 pb-4 border-b border-white/10 glass-panel rounded-2xl px-6 py-4"
+      >
+        <div
+          class="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-200 to-amber-500 flex items-center justify-center text-slate-950 font-bold shadow-lg shadow-amber-500/20"
+        >
+          <i data-lucide="radio" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <h1
+            class="text-lg font-bold tracking-tight text-white flex items-center gap-2"
+          >
+            Mobile Edge
+            <span
+              class="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20"
+              >Node Unit</span
+            >
+          </h1>
+          <p class="text-xs text-slate-400">
+            SigHeat Field Telemetry Transmitter
+          </p>
+        </div>
+      </header>
 
-        <button id="main-btn" class="btn-start" onclick="toggleTelemetry()">
-          Mulai Mengirim Telemetri
+      <!-- Control Card -->
+      <div class="glass-panel rounded-3xl p-6 mb-6 shadow-xl space-y-4">
+        <div>
+          <label
+            class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2 flex items-center gap-1.5"
+          >
+            <i
+              data-lucide="folder-git-2"
+              class="w-3.5 h-3.5 text-amber-400"
+            ></i>
+            Project ID Kelompok
+          </label>
+          <input
+            type="text"
+            id="project-id"
+            value="sigheat_kelompok_07"
+            class="w-full bg-slate-950/60 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-amber-500 transition-colors font-mono"
+          />
+        </div>
+
+        <div>
+          <label
+            class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2 flex items-center gap-1.5"
+          >
+            <i data-lucide="cpu" class="w-3.5 h-3.5 text-amber-400"></i> Pilih
+            Peran Perangkat
+          </label>
+          <select
+            id="device-role"
+            class="w-full bg-slate-950/60 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-amber-500 transition-colors"
+          >
+            <option value="node1" class="bg-slate-900 text-white">
+              Edge 1 (HP Area A)
+            </option>
+            <option value="node2" class="bg-slate-900 text-white">
+              Edge 2 (HP Area B)
+            </option>
+          </select>
+        </div>
+
+        <button
+          id="main-btn"
+          onclick="toggleTelemetry()"
+          class="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs tracking-wider uppercase transition-all shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2"
+        >
+          <i data-lucide="send" class="w-4 h-4"></i> Mulai Mengirim Telemetri
         </button>
       </div>
 
-      <div class="card">
-        <p>
-          Status MQTT:
-          <span id="mqtt-status" class="badge badge-off">Terputus</span>
-        </p>
-        <p>Latensi RTT: <strong id="lbl-rtt">-- ms</strong></p>
-        <p>Status Zona: <strong id="lbl-zone">--</strong></p>
+      <!-- Telemetry Status Card -->
+      <div class="glass-panel rounded-3xl p-6 mb-6 space-y-4">
+        <div class="flex justify-between items-center">
+          <span
+            class="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5"
+          >
+            <i data-lucide="wifi" class="w-3.5 h-3.5 text-slate-400"></i> Status
+            MQTT
+          </span>
+          <span
+            id="mqtt-status"
+            class="px-3 py-1 rounded-full text-xs font-bold bg-slate-800 text-rose-400 border border-rose-500/30"
+            >Terputus</span
+          >
+        </div>
+
+        <div
+          class="flex justify-between items-center border-t border-white/5 pt-3"
+        >
+          <span
+            class="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5"
+          >
+            <i data-lucide="timer" class="w-3.5 h-3.5 text-slate-400"></i>
+            Latensi RTT
+          </span>
+          <strong id="lbl-rtt" class="text-xl font-mono text-white"
+            >-- ms</strong
+          >
+        </div>
+
+        <div
+          class="flex justify-between items-center border-t border-white/5 pt-3"
+        >
+          <span
+            class="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5"
+          >
+            <i data-lucide="activity" class="w-3.5 h-3.5 text-slate-400"></i>
+            Status Zona
+          </span>
+          <strong
+            id="lbl-zone"
+            class="text-xs font-semibold text-amber-400 tracking-wider"
+            >--</strong
+          >
+        </div>
       </div>
 
-      <div class="card">
-        <label>Log Aktivitas:</label>
-        <div id="log" class="log-box">Menunggu start...</div>
+      <!-- Log Aktivitas -->
+      <div class="glass-panel rounded-3xl p-6">
+        <label
+          class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-1.5"
+        >
+          <i data-lucide="terminal" class="w-3.5 h-3.5 text-amber-400"></i> Log
+          Aktivitas
+        </label>
+        <div
+          id="log"
+          class="bg-slate-950/80 border border-white/5 rounded-2xl p-4 font-mono text-xs text-amber-300 h-36 overflow-y-auto space-y-1"
+        >
+          <div>> Menunggu start...</div>
+        </div>
       </div>
     </div>
 
     <script>
+      lucide.createIcons();
+
       let isRunning = false;
       let client = null;
       let timer = null;
       let sequence = 0;
       let currentRtt = 0;
-      let activeRole = "";
+      let activeSenderId = null;
+      let myUniqueId = "";
 
       function log(msg) {
         const box = document.getElementById("log");
@@ -161,126 +245,118 @@
         const role = document.getElementById("device-role").value;
 
         if (!isRunning) {
-          // Buat Unique Client ID untuk tiap perangkat yang membuka halaman
-          const uniqueId =
+          myUniqueId =
             "edge_" + role + "_" + Math.random().toString(16).substr(2, 6);
+          activeSenderId = null;
+
           client = new Paho.MQTT.Client(
             "broker.hivemq.com",
             8884,
             "/mqtt",
-            uniqueId,
+            myUniqueId,
           );
 
-          const presenceTopic = `sigheat/${projectId}/presence/${role}`;
-          let roleCheckTimeout = null;
-          let isRoleTaken = false;
-
           client.onConnectionLost = (responseObject) => {
-            document.getElementById("mqtt-status").className =
-              "badge badge-off";
-            document.getElementById("mqtt-status").innerText = "Terputus";
+            const statusEl = document.getElementById("mqtt-status");
+            if (statusEl) {
+              statusEl.className =
+                "px-3 py-1 rounded-full text-xs font-bold bg-slate-800 text-rose-400 border border-rose-500/30";
+              statusEl.innerText = "Terputus";
+            }
             log("Koneksi terputus: " + responseObject.errorMessage);
             stopEverything();
           };
 
+          // Mendengarkan pesan aktif dari perangkat lain yang sedang menggunakan peran ini
           client.onMessageArrived = (msg) => {
-            if (msg.destinationName === presenceTopic) {
+            try {
               const data = JSON.parse(msg.payloadString);
-              const now = Date.now();
-
-              // ATURAN VALIDASI:
-              // 1. Status harus ONLINE
-              // 2. Client ID di dalam pesan BERBEDA dengan milik perangkat ini (artinya punya perangkat lain)
-              // 3. Pesan masih baru (< 5 detik)
-              if (
-                data.status === "ONLINE" &&
-                data.client_id !== uniqueId &&
-                now - data.timestamp < 5000
-              ) {
-                isRoleTaken = true;
-                alert(
-                  `Peran "${role}" sedang digunakan oleh perangkat lain! Silakan pilih peran lain.`,
-                );
-                log(
-                  `Gagal: Peran ${role} sudah aktif digunakan perangkat lain.`,
-                );
-                clearTimeout(roleCheckTimeout);
-                client.disconnect();
+              if (data.client_id !== myUniqueId && data.status !== "OFFLINE") {
+                activeSenderId = data.client_id;
               }
-            }
+            } catch (e) {}
           };
 
           client.connect({
             useSSL: true,
             onSuccess: () => {
-              log("Terhubung, memeriksa ketersediaan peran...");
-              client.subscribe(presenceTopic);
+              log(`Memeriksa ketersediaan jalur untuk ${role}...`);
+              const topic = `sigheat/${projectId}/edge/${role}/telemetry`;
+              client.subscribe(topic);
 
-              // Kirim sinyal presence dengan menyertakan uniqueId perangkat ini
-              const presenceMsg = new Paho.MQTT.Message(
-                JSON.stringify({
-                  status: "ONLINE",
-                  client_id: uniqueId,
-                  timestamp: Date.now(),
-                }),
-              );
-              presenceMsg.destinationName = presenceTopic;
-              presenceMsg.retained = true;
-              client.send(presenceMsg);
+              // Beri waktu 2 detik penuh untuk mendengarkan apakah ada perangkat lain yang sedang aktif mengirim data
+              setTimeout(() => {
+                if (activeSenderId !== null) {
+                  alert(
+                    `PERINGATAN: Peran ${role} sedang digunakan oleh perangkat lain (${activeSenderId})! Silakan pilih peran lain.`,
+                  );
+                  log(
+                    `GAGAL: Peran ${role} sedang aktif digunakan oleh ${activeSenderId}.`,
+                  );
+                  try {
+                    client.disconnect();
+                  } catch (err) {}
+                  stopEverything();
+                  return;
+                }
 
-              // Beri jeda 1 detik untuk mendengarkan apakah ada perangkat lain yang merespons
-              roleCheckTimeout = setTimeout(() => {
-                if (isRoleTaken) return;
-
-                document.getElementById("mqtt-status").className =
-                  "badge badge-on";
-                document.getElementById("mqtt-status").innerText = "Terhubung";
+                // Jika jalur bersih, mulai pengiriman telemetri
+                const statusEl = document.getElementById("mqtt-status");
+                statusEl.className =
+                  "px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
+                statusEl.innerText = "Terhubung";
                 isRunning = true;
-                activeRole = role;
-                btn.className = "btn-stop";
-                btn.innerText = "Hentikan Telemetri";
-                log(
-                  `Berhasil mengunci peran ${role}! Mulai mengirim telemetri.`,
-                );
+
+                btn.className =
+                  "w-full py-3.5 rounded-xl bg-rose-500 hover:bg-rose-600 text-white font-bold text-xs tracking-wider uppercase transition-all shadow-lg shadow-rose-500/20 flex items-center justify-center gap-2";
+                btn.innerHTML = `<i data-lucide="square" class="w-4 h-4"></i> Hentikan Telemetri`;
+                lucide.createIcons();
+
+                log(`Berhasil mengamankan dan terhubung sebagai ${role}!`);
 
                 timer = setInterval(async () => {
                   sequence++;
                   const metric = await measurePing();
                   const payload = {
+                    client_id: myUniqueId,
                     device_id: role,
                     sequence: sequence,
                     smoothed_rtt_ms: metric.rtt,
                     status_zone: metric.zone,
+                    status: "ONLINE",
                     timestamp: Date.now(),
                   };
 
-                  const topic = `sigheat/${projectId}/edge/${role}/telemetry`;
                   const message = new Paho.MQTT.Message(
                     JSON.stringify(payload),
                   );
                   message.destinationName = topic;
                   client.send(message);
-                  log(`Kirim #${sequence} | RTT: ${metric.rtt}ms`);
+                  log(`Kirim #${sequence} (${role}) | RTT: ${metric.rtt}ms`);
                 }, 2000);
-              }, 1000);
+              }, 2000); // Diperpanjang menjadi 2000ms (2 detik) agar deteksi tabrakan lebih akurat
             },
             onFailure: (err) => {
               log("Gagal konek: " + err.errorMessage);
+              stopEverything();
             },
           });
         } else {
+          // Kirim sinyal OFFLINE agar peran langsung terbuka kembali secara instan
           if (client && client.isConnected()) {
-            const presenceTopic = `sigheat/${projectId}/presence/${activeRole}`;
-            const offlineMsg = new Paho.MQTT.Message(
-              JSON.stringify({
+            try {
+              const topic = `sigheat/${projectId}/edge/${role}/telemetry`;
+              const offlinePayload = JSON.stringify({
+                client_id: myUniqueId,
+                device_id: role,
                 status: "OFFLINE",
-                client_id: "",
                 timestamp: Date.now(),
-              }),
-            );
-            offlineMsg.destinationName = presenceTopic;
-            offlineMsg.retained = true;
-            client.send(offlineMsg);
+              });
+              const message = new Paho.MQTT.Message(offlinePayload);
+              message.destinationName = topic;
+              client.send(message);
+              client.disconnect();
+            } catch (e) {}
           }
           stopEverything();
           log("Telemetri dihentikan.");
@@ -288,14 +364,25 @@
       }
 
       function stopEverything() {
-        if (timer) clearInterval(timer);
-        if (client && client.isConnected()) client.disconnect();
+        clearInterval(timer);
+        timer = null;
         isRunning = false;
+        activeSenderId = null;
+
         const btn = document.getElementById("main-btn");
-        btn.className = "btn-start";
-        btn.innerText = "Mulai Mengirim Telemetri";
-        document.getElementById("mqtt-status").className = "badge badge-off";
-        document.getElementById("mqtt-status").innerText = "Terputus";
+        if (btn) {
+          btn.className =
+            "w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs tracking-wider uppercase transition-all shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2";
+          btn.innerHTML = `<i data-lucide="send" class="w-4 h-4"></i> Mulai Mengirim Telemetri`;
+          lucide.createIcons();
+        }
+
+        const statusEl = document.getElementById("mqtt-status");
+        if (statusEl) {
+          statusEl.className =
+            "px-3 py-1 rounded-full text-xs font-bold bg-slate-800 text-rose-400 border border-rose-500/30";
+          statusEl.innerText = "Terputus";
+        }
       }
     </script>
   </body>
