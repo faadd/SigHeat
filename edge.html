@@ -116,9 +116,10 @@
             <i data-lucide="cpu" class="w-3.5 h-3.5 text-amber-400"></i> Pilih
             Peran Perangkat
           </label>
+          <!-- Perangkat select ini akan otomatis terkunci saat perangkat sedang berjalan -->
           <select
             id="device-role"
-            class="w-full bg-slate-950/60 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-amber-500 transition-colors"
+            class="w-full bg-slate-950/60 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-amber-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <option value="node1" class="bg-slate-900 text-white">
               Edge 1 (HP Area A)
@@ -241,8 +242,9 @@
 
       function toggleTelemetry() {
         const btn = document.getElementById("main-btn");
+        const roleSelect = document.getElementById("device-role");
         const projectId = document.getElementById("project-id").value;
-        const role = document.getElementById("device-role").value;
+        const role = roleSelect.value;
 
         if (!isRunning) {
           myUniqueId =
@@ -267,7 +269,6 @@
             stopEverything();
           };
 
-          // Mendengarkan pesan aktif dari perangkat lain yang sedang menggunakan peran ini
           client.onMessageArrived = (msg) => {
             try {
               const data = JSON.parse(msg.payloadString);
@@ -284,7 +285,6 @@
               const topic = `sigheat/${projectId}/edge/${role}/telemetry`;
               client.subscribe(topic);
 
-              // Beri waktu 2 detik penuh untuk mendengarkan apakah ada perangkat lain yang sedang aktif mengirim data
               setTimeout(() => {
                 if (activeSenderId !== null) {
                   alert(
@@ -300,7 +300,9 @@
                   return;
                 }
 
-                // Jika jalur bersih, mulai pengiriman telemetri
+                // Jalur bersih: Kunci dropdown peran agar tidak bisa diubah saat berjalan
+                roleSelect.disabled = true;
+
                 const statusEl = document.getElementById("mqtt-status");
                 statusEl.className =
                   "px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
@@ -334,7 +336,7 @@
                   client.send(message);
                   log(`Kirim #${sequence} (${role}) | RTT: ${metric.rtt}ms`);
                 }, 2000);
-              }, 2000); // Diperpanjang menjadi 2000ms (2 detik) agar deteksi tabrakan lebih akurat
+              }, 2000);
             },
             onFailure: (err) => {
               log("Gagal konek: " + err.errorMessage);
@@ -368,6 +370,12 @@
         timer = null;
         isRunning = false;
         activeSenderId = null;
+
+        // Buka kembali kunci dropdown pilihan peran saat telemetri dihentikan
+        const roleSelect = document.getElementById("device-role");
+        if (roleSelect) {
+          roleSelect.disabled = false;
+        }
 
         const btn = document.getElementById("main-btn");
         if (btn) {
