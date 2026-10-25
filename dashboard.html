@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="id" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SigHeat · Dashboard Multi-Point Signal Mapper</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Paho MQTT -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Chart.js Zoom Plugin -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.0.1/chartjs-plugin-zoom.min.js"></script>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
+
+      body {
+        background-color: #02040a;
+        color: #cbd5e1;
+        font-family: "Inter", sans-serif;
+      }
+
+      .bg-noise {
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
+      }
+
+      .glass-panel {
+        background: rgba(15, 23, 42, 0.4);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow:
+          0 20px 50px rgba(0, 0, 0, 0.5),
+          inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      }
+
+      .bg-grid-pattern {
+        background-image:
+          linear-gradient(
+            to right,
+            rgba(255, 255, 255, 0.03) 1px,
+            transparent 1px
+          ),
+          linear-gradient(
+            to bottom,
+            rgba(255, 255, 255, 0.03) 1px,
+            transparent 1px
+          );
+        background-size: 24px 24px;
+      }
+
+      /* Transisi Smooth Status */
+      .status-badge {
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+    </style>
+  </head>
+  <body
+    class="min-h-screen relative overflow-x-hidden selection:bg-amber-500/30 text-slate-300 pb-12"
+  >
+    <div class="fixed inset-0 bg-noise pointer-events-none z-0"></div>
+    <div
+      class="fixed top-[10%] left-[15%] w-[500px] h-[500px] bg-indigo-600/10 rounded-full blur-[140px] pointer-events-none z-0"
+    ></div>
+    <div
+      class="fixed bottom-[10%] right-[10%] w-[600px] h-[600px] bg-amber-500/5 rounded-full blur-[150px] pointer-events-none z-0"
+    ></div>
+    <div
+      class="fixed inset-0 bg-grid-pattern opacity-60 pointer-events-none z-0"
+    ></div>
+
+    <div class="max-w-6xl mx-auto px-4 pt-8 relative z-10">
+      <!-- Header -->
+      <header
+        class="flex items-center justify-between mb-8 pb-4 border-b border-white/10 glass-panel rounded-2xl px-6 py-4"
+      >
+        <div class="flex items-center gap-3">
+          <div
+            class="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-200 to-amber-500 flex items-center justify-center text-slate-950 font-bold shadow-lg shadow-amber-500/20"
+          >
+            <i data-lucide="waves" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <h1
+              class="text-xl font-bold tracking-tight text-white flex items-center gap-2"
+            >
+              SigHeat
+              <span
+                class="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                >Pro Performance</span
+              >
+            </h1>
+            <p class="text-xs text-slate-400">
+              Multi-Node Telemetry & Real-Time Signal Analytics
+            </p>
+          </div>
+        </div>
+
+        <button
+          onclick="location.reload()"
+          title="Refresh Dashboard"
+          class="w-11 h-11 rounded-xl glass-panel hover:bg-white/10 flex items-center justify-center text-slate-300 hover:text-amber-400 transition-all group"
+        >
+          <i
+            data-lucide="refresh-cw"
+            class="w-5 h-5 group-hover:rotate-180 transition-transform duration-500"
+          ></i>
+        </button>
+      </header>
+
+      <!-- 1. PEMANTAUAN EDGE DEVICE -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <!-- Node 1 Card -->
+        <div
+          class="glass-panel rounded-3xl p-6 relative overflow-hidden group hover:border-amber-500/30 transition-all"
+        >
+          <div class="flex justify-between items-start mb-4">
+            <div>
+              <span
+                class="text-xs uppercase tracking-widest text-amber-400 font-semibold flex items-center gap-1.5"
+              >
+                <span
+                  class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"
+                ></span>
+                Area A
+              </span>
+              <h3 class="text-xl font-bold text-white mt-1">
+                Node 1 Transmitter
+              </h3>
+            </div>
+            <span
+              id="st-node1"
+              class="status-badge px-3 py-1 rounded-full text-xs font-bold bg-slate-800 text-slate-400 border border-slate-700"
+              >Waiting...</span
+            >
+          </div>
+          <div class="flex items-baseline gap-2">
+            <span
+              class="text-4xl font-extrabold text-white tracking-tight font-mono transition-all"
+              id="rtt-node1"
+              >--</span
+            >
+            <span
+              class="text-xs text-slate-400 uppercase tracking-wider font-semibold"
+              >ms Latency</span
+            >
+          </div>
+        </div>
+
+        <!-- Node 2 Card -->
+        <div
+          class="glass-panel rounded-3xl p-6 relative overflow-hidden group hover:border-indigo-500/30 transition-all"
+        >
+          <div class="flex justify-between items-start mb-4">
+            <div>
+              <span
+                class="text-xs uppercase tracking-widest text-indigo-400 font-semibold flex items-center gap-1.5"
+              >
+                <span
+                  class="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse"
+                ></span>
+                Area B
+              </span>
+              <h3 class="text-xl font-bold text-white mt-1">
+                Node 2 Transmitter
+              </h3>
+            </div>
+            <span
+              id="st-node2"
+              class="status-badge px-3 py-1 rounded-full text-xs font-bold bg-slate-800 text-slate-400 border border-slate-700"
+              >Waiting...</span
+            >
+          </div>
+          <div class="flex items-baseline gap-2">
+            <span
+              class="text-4xl font-extrabold text-white tracking-tight font-mono transition-all"
+              id="rtt-node2"
+              >--</span
+            >
+            <span
+              class="text-xs text-slate-400 uppercase tracking-wider font-semibold"
+              >ms Latency</span
+            >
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. KONTROL & GRAFIK -->
+      <div class="glass-panel rounded-3xl p-6 relative">
+        <div
+          class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6"
+        >
+          <div>
+            <div class="flex items-center gap-2">
+              <i data-lucide="activity" class="w-5 h-5 text-amber-400"></i>
+              <h3 class="text-lg font-bold text-white">
+                Performansi Signal & Telemetri RTT
+              </h3>
+            </div>
+            <p class="text-xs text-slate-400 mt-0.5">
+              Analisis sinyal waktu nyata dengan kurva responsif multi-path
+            </p>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2">
+            <button
+              id="btn-chart-toggle"
+              onclick="toggleChartMonitoring()"
+              class="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-semibold text-xs tracking-wider uppercase transition-all shadow-lg shadow-amber-500/20 flex items-center gap-1.5"
+            >
+              <i data-lucide="play" class="w-3.5 h-3.5"></i> Mulai Grafik
+            </button>
+            <button
+              onclick="zoomIn()"
+              class="px-3 py-2 rounded-xl glass-panel hover:bg-white/10 text-amber-300 text-xs font-semibold transition-all"
+            >
+              Zoom In (+)
+            </button>
+            <button
+              onclick="zoomOut()"
+              class="px-3 py-2 rounded-xl glass-panel hover:bg-white/10 text-amber-300 text-xs font-semibold transition-all"
+            >
+              Zoom Out (-)
+            </button>
+            <button
+              onclick="resetZoomChart()"
+              class="px-3 py-2 rounded-xl glass-panel hover:bg-white/10 text-slate-400 text-xs font-semibold transition-all"
+            >
+              Reset
+            </button>
+          </div>
+        </div>
+
+        <div class="w-full h-[400px] relative pt-2">
+          <canvas id="chart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      lucide.createIcons();
+
+      const projectId = "sigheat_kelompok_07";
+      let isChartActive = false;
+      let chartTimer = null;
+
+      let nodeData = {
+        node1: { rtt: null, zone: "Waiting...", lastSeen: 0 },
+        node2: { rtt: null, zone: "Waiting...", lastSeen: 0 },
+      };
+
+      const ctx = document.getElementById("chart").getContext("2d");
+
+      const gradAmber = ctx.createLinearGradient(0, 0, 0, 400);
+      gradAmber.addColorStop(0, "rgba(245, 158, 11, 0.35)");
+      gradAmber.addColorStop(1, "rgba(245, 158, 11, 0.0)");
+
+      const gradBlue = ctx.createLinearGradient(0, 0, 0, 400);
+      gradBlue.addColorStop(0, "rgba(59, 130, 246, 0.35)");
+      gradBlue.addColorStop(1, "rgba(59, 130, 246, 0.0)");
+
+      const chart = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: [],
+          datasets: [
+            {
+              label: "Node 1 (Area A)",
+              borderColor: "#f59e0b",
+              backgroundColor: gradAmber,
+              data: [],
+              borderWidth: 2.5,
+              tension: 0.45,
+              fill: true,
+              pointBackgroundColor: "#f59e0b",
+              pointBorderColor: "#02040a",
+              pointRadius: 4,
+              pointHoverRadius: 6,
+            },
+            {
+              label: "Node 2 (Area B)",
+              borderColor: "#3b82f6",
+              backgroundColor: gradBlue,
+              data: [],
+              borderWidth: 2.5,
+              tension: 0.45,
+              fill: true,
+              pointBackgroundColor: "#3b82f6",
+              pointBorderColor: "#02040a",
+              pointRadius: 4,
+              pointHoverRadius: 6,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: "top",
+              align: "end",
+              labels: {
+                color: "#94a3b8",
+                font: { family: "Inter", size: 12, weight: "500" },
+                usePointStyle: true,
+                boxWidth: 8,
+              },
+            },
+            zoom: {
+              zoom: {
+                wheel: { enabled: true },
+                pinch: { enabled: true },
+                mode: "xy",
+              },
+            },
+          },
+          scales: {
+            x: {
+              grid: { color: "rgba(255, 255, 255, 0.04)" },
+              ticks: { color: "#64748b", font: { family: "Inter", size: 11 } },
+            },
+            y: {
+              beginAtZero: true,
+              grid: { color: "rgba(255, 255, 255, 0.04)" },
+              ticks: { color: "#64748b", font: { family: "Inter", size: 11 } },
+            },
+          },
+        },
+      });
+
+      const client = new Paho.MQTT.Client(
+        "broker.hivemq.com",
+        8884,
+        "/mqtt",
+        "dash_" + Date.now(),
+      );
+
+      client.onMessageArrived = (msg) => {
+        try {
+          const data = JSON.parse(msg.payloadString);
+          const now = Date.now();
+
+          // Jika menerima pesan disonnect eksplisit
+          if (data.status === "OFFLINE") {
+            if (data.device_id === "node1") {
+              nodeData.node1.rtt = null;
+              nodeData.node1.lastSeen = 0;
+              document.getElementById("rtt-node1").innerText = "--";
+              updateStatus("st-node1", "WAITING");
+            } else if (data.device_id === "node2") {
+              nodeData.node2.rtt = null;
+              nodeData.node2.lastSeen = 0;
+              document.getElementById("rtt-node2").innerText = "--";
+              updateStatus("st-node2", "WAITING");
+            }
+            return;
+          }
+
+          if (data.device_id === "node1") {
+            nodeData.node1.rtt = data.smoothed_rtt_ms;
+            nodeData.node1.zone = data.status_zone;
+            nodeData.node1.lastSeen = now;
+            document.getElementById("rtt-node1").innerText =
+              data.smoothed_rtt_ms;
+            updateStatus("st-node1", data.status_zone);
+          } else if (data.device_id === "node2") {
+            nodeData.node2.rtt = data.smoothed_rtt_ms;
+            nodeData.node2.zone = data.status_zone;
+            nodeData.node2.lastSeen = now;
+            document.getElementById("rtt-node2").innerText =
+              data.smoothed_rtt_ms;
+            updateStatus("st-node2", data.status_zone);
+          }
+        } catch (e) {}
+      };
+
+      // Watchdog Timeout (3 Detik tanpa data -> Smooth Waiting)
+      setInterval(() => {
+        const now = Date.now();
+        if (
+          nodeData.node1.lastSeen > 0 &&
+          now - nodeData.node1.lastSeen > 3000
+        ) {
+          nodeData.node1.rtt = null;
+          nodeData.node1.lastSeen = 0;
+          document.getElementById("rtt-node1").innerText = "--";
+          updateStatus("st-node1", "WAITING");
+        }
+        if (
+          nodeData.node2.lastSeen > 0 &&
+          now - nodeData.node2.lastSeen > 3000
+        ) {
+          nodeData.node2.rtt = null;
+          nodeData.node2.lastSeen = 0;
+          document.getElementById("rtt-node2").innerText = "--";
+          updateStatus("st-node2", "WAITING");
+        }
+      }, 1000);
+
+      function startChartLoop(saveState = true) {
+        isChartActive = true;
+        const btn = document.getElementById("btn-chart-toggle");
+        if (btn) {
+          btn.className =
+            "px-4 py-2 rounded-xl bg-rose-500 hover:bg-rose-600 text-white font-semibold text-xs tracking-wider uppercase transition-all shadow-lg shadow-rose-500/20 flex items-center gap-1.5";
+          btn.innerHTML = `<i data-lucide="square" class="w-3.5 h-3.5"></i> Hentikan Grafik`;
+          lucide.createIcons();
+        }
+        if (saveState) localStorage.setItem("sigheat_chart_running", "true");
+
+        if (!chartTimer) {
+          chartTimer = setInterval(() => {
+            const time = new Date().toLocaleTimeString();
+
+            if (chart.data.labels.length > 15) {
+              chart.data.labels.shift();
+              chart.data.datasets[0].data.shift();
+              chart.data.datasets[1].data.shift();
+            }
+
+            chart.data.labels.push(time);
+            chart.data.datasets[0].data.push(nodeData.node1.rtt);
+            chart.data.datasets[1].data.push(nodeData.node2.rtt);
+            chart.update();
+          }, 2000);
+        }
+      }
+
+      function stopChartLoop(saveState = true) {
+        isChartActive = false;
+        const btn = document.getElementById("btn-chart-toggle");
+        if (btn) {
+          btn.className =
+            "px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-semibold text-xs tracking-wider uppercase transition-all shadow-lg shadow-amber-500/20 flex items-center gap-1.5";
+          btn.innerHTML = `<i data-lucide="play" class="w-3.5 h-3.5"></i> Mulai Grafik`;
+          lucide.createIcons();
+        }
+        if (saveState) localStorage.removeItem("sigheat_chart_running");
+
+        if (chartTimer) {
+          clearInterval(chartTimer);
+          chartTimer = null;
+        }
+      }
+
+      function toggleChartMonitoring() {
+        if (!isChartActive) {
+          startChartLoop(true);
+        } else {
+          stopChartLoop(true);
+        }
+      }
+
+      function zoomIn() {
+        chart.zoom(1.1);
+      }
+      function zoomOut() {
+        chart.zoom(0.9);
+      }
+      function resetZoomChart() {
+        chart.resetZoom();
+      }
+
+      client.connect({
+        useSSL: true,
+        onSuccess: () => {
+          client.subscribe(`sigheat/${projectId}/edge/+/telemetry`);
+          if (localStorage.getItem("sigheat_chart_running") === "true") {
+            startChartLoop(false);
+          }
+        },
+      });
+
+      function updateStatus(id, zone) {
+        const el = document.getElementById(id);
+        if (!el) return;
+
+        if (zone === "WAITING" || zone === "Waiting...") {
+          el.innerText = "Waiting...";
+          el.className =
+            "status-badge px-3 py-1 rounded-full text-xs font-bold bg-slate-800 text-slate-400 border border-slate-700";
+          return;
+        }
+        el.innerText = zone;
+        if (zone === "GOOD_ZONE") {
+          el.className =
+            "status-badge px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
+        } else if (zone === "MODERATE_ZONE") {
+          el.className =
+            "status-badge px-3 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30";
+        } else {
+          el.className =
+            "status-badge px-3 py-1 rounded-full text-xs font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30";
+        }
+      }
+    </script>
+  </body>
+</html>
