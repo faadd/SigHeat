@@ -1,0 +1,9 @@
+{
+  "name": "sigheat",
+  "version": "2.1.0",
+  "private": true,
+  "description": "SigHeat MQTT sensor monitoring with Browser and Termux Android edge options",
+  "scripts": {
+    "test": "node --test tests/*.cjs"
+  }
+}

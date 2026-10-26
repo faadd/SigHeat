@@ -1,501 +1,498 @@
 <!doctype html>
-<html lang="id" class="dark">
+<html lang="id">
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SigHeat · Dashboard Multi-Point Signal Mapper</title>
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <!-- Paho MQTT -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Chart.js Zoom Plugin -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.0.1/chartjs-plugin-zoom.min.js"></script>
-    <style>
-      @import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
-
-      body {
-        background-color: #02040a;
-        color: #cbd5e1;
-        font-family: "Inter", sans-serif;
-      }
-
-      .bg-noise {
-        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
-      }
-
-      .glass-panel {
-        background: rgba(15, 23, 42, 0.4);
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        box-shadow:
-          0 20px 50px rgba(0, 0, 0, 0.5),
-          inset 0 1px 0 rgba(255, 255, 255, 0.1);
-      }
-
-      .bg-grid-pattern {
-        background-image:
-          linear-gradient(
-            to right,
-            rgba(255, 255, 255, 0.03) 1px,
-            transparent 1px
-          ),
-          linear-gradient(
-            to bottom,
-            rgba(255, 255, 255, 0.03) 1px,
-            transparent 1px
-          );
-        background-size: 24px 24px;
-      }
-
-      /* Transisi Smooth Status */
-      .status-badge {
-        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-      }
-    </style>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#246c51" />
+    <title>SigHeat · Peta koneksi</title>
+    <link rel="stylesheet" href="assets/vendor/leaflet.css" />
+    <link rel="stylesheet" href="assets/style.css" />
   </head>
-  <body
-    class="min-h-screen relative overflow-x-hidden selection:bg-amber-500/30 text-slate-300 pb-12"
-  >
-    <div class="fixed inset-0 bg-noise pointer-events-none z-0"></div>
-    <div
-      class="fixed top-[10%] left-[15%] w-[500px] h-[500px] bg-indigo-600/10 rounded-full blur-[140px] pointer-events-none z-0"
-    ></div>
-    <div
-      class="fixed bottom-[10%] right-[10%] w-[600px] h-[600px] bg-amber-500/5 rounded-full blur-[150px] pointer-events-none z-0"
-    ></div>
-    <div
-      class="fixed inset-0 bg-grid-pattern opacity-60 pointer-events-none z-0"
-    ></div>
-
-    <div class="max-w-6xl mx-auto px-4 pt-8 relative z-10">
-      <!-- Header -->
-      <header
-        class="flex items-center justify-between mb-8 pb-4 border-b border-white/10 glass-panel rounded-2xl px-6 py-4"
-      >
-        <div class="flex items-center gap-3">
-          <div
-            class="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-200 to-amber-500 flex items-center justify-center text-slate-950 font-bold shadow-lg shadow-amber-500/20"
+  <body data-page="dashboard">
+    <a class="skip-link" href="#main">Lewati navigasi</a>
+    <div class="app">
+      <aside class="sidebar">
+        <a href="dashboard.html" class="brand"
+          ><span class="brand-symbol" aria-hidden="true"
+            ><i></i><i></i><i></i><i></i></span
+          >SigHeat<span style="color: #4d8155">.</span></a
+        >
+        <p class="brand-sub">SIGNAL HEATMAP</p>
+        <p class="nav-label">RUANG PEMANTAUAN</p>
+        <nav class="nav" aria-label="Menu utama">
+          <button class="active" data-view="map">
+            <span class="nav-icon">◫</span>Peta koneksi</button
+          ><button data-view="devices">
+            <span class="nav-icon">▣</span>Perangkat
+            <span class="nav-counter" id="nav-device-count">0</span></button
+          ><button data-view="activity">
+            <span class="nav-icon">≡</span>Aktivitas</button
+          ><button data-view="guide">
+            <span class="nav-icon">?</span>Panduan</button
+          ><a href="index.html"
+            ><span class="nav-icon">↗</span>Mode kontributor</a
           >
-            <i data-lucide="waves" class="w-6 h-6"></i>
-          </div>
-          <div>
-            <h1
-              class="text-xl font-bold tracking-tight text-white flex items-center gap-2"
+        </nav>
+        <div class="sidebar-bottom">
+          <div class="project-block">
+            <span class="small muted">PROYEK KELOMPOK</span
+            ><strong class="mono project-label">Belum terhubung</strong
+            ><span class="small muted" id="sidebar-source"
+              >Belum menerima data</span
             >
-              SigHeat
-              <span
-                class="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20"
-                >Pro Performance</span
-              >
-            </h1>
-            <p class="text-xs text-slate-400">
-              Multi-Node Telemetry & Real-Time Signal Analytics
-            </p>
           </div>
-        </div>
-
-        <button
-          onclick="location.reload()"
-          title="Refresh Dashboard"
-          class="w-11 h-11 rounded-xl glass-panel hover:bg-white/10 flex items-center justify-center text-slate-300 hover:text-amber-400 transition-all group"
-        >
-          <i
-            data-lucide="refresh-cw"
-            class="w-5 h-5 group-hover:rotate-180 transition-transform duration-500"
-          ></i>
-        </button>
-      </header>
-
-      <!-- 1. PEMANTAUAN EDGE DEVICE -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        <!-- Node 1 Card -->
-        <div
-          class="glass-panel rounded-3xl p-6 relative overflow-hidden group hover:border-amber-500/30 transition-all"
-        >
-          <div class="flex justify-between items-start mb-4">
+          <div class="role-block">
+            <span class="avatar">OP</span>
             <div>
-              <span
-                class="text-xs uppercase tracking-widest text-amber-400 font-semibold flex items-center gap-1.5"
-              >
-                <span
-                  class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"
-                ></span>
-                Area A
-              </span>
-              <h3 class="text-xl font-bold text-white mt-1">
-                Node 1 Transmitter
-              </h3>
+              <strong>Operator pemantauan</strong
+              ><small>Dashboard kelompok</small>
             </div>
-            <span
-              id="st-node1"
-              class="status-badge px-3 py-1 rounded-full text-xs font-bold bg-slate-800 text-slate-400 border border-slate-700"
-              >Waiting...</span
-            >
-          </div>
-          <div class="flex items-baseline gap-2">
-            <span
-              class="text-4xl font-extrabold text-white tracking-tight font-mono transition-all"
-              id="rtt-node1"
-              >--</span
-            >
-            <span
-              class="text-xs text-slate-400 uppercase tracking-wider font-semibold"
-              >ms Latency</span
-            >
           </div>
         </div>
-
-        <!-- Node 2 Card -->
-        <div
-          class="glass-panel rounded-3xl p-6 relative overflow-hidden group hover:border-indigo-500/30 transition-all"
-        >
-          <div class="flex justify-between items-start mb-4">
+      </aside>
+      <div class="workspace">
+        <header class="topbar">
+          <div class="breadcrumb">
+            Pemantauan <span style="margin: 0 10px">/</span
+            ><strong id="breadcrumb-current">Peta koneksi</strong>
+          </div>
+          <div class="top-actions">
+            <span class="status-pill"
+              ><span class="status-dot" id="status-dot"></span
+              ><span id="connection-status">MQTT belum terhubung</span></span
+            ><button class="btn compact" data-open-connection>
+              Atur koneksi <span aria-hidden="true">↗</span>
+            </button>
+          </div>
+        </header>
+        <main class="main" id="main">
+          <div class="page-heading">
             <div>
-              <span
-                class="text-xs uppercase tracking-widest text-indigo-400 font-semibold flex items-center gap-1.5"
-              >
-                <span
-                  class="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse"
-                ></span>
-                Area B
-              </span>
-              <h3 class="text-xl font-bold text-white mt-1">
-                Node 2 Transmitter
-              </h3>
+              <h1 id="page-title">Pahami koneksi di setiap titik.</h1>
+              <p id="page-subtitle">
+                Bandingkan latensi aplikasi dan gerakan perangkat pada titik
+                pengukuran berbeda.
+              </p>
             </div>
-            <span
-              id="st-node2"
-              class="status-badge px-3 py-1 rounded-full text-xs font-bold bg-slate-800 text-slate-400 border border-slate-700"
-              >Waiting...</span
+            <div class="heading-actions">
+              <button class="btn" id="export-csv">↓ Ekspor CSV</button
+              ><a class="btn primary" href="index.html">+ Tambah perangkat</a>
+            </div>
+          </div>
+          <div class="demo-strip" id="mode-strip">
+            <span class="chip grey" id="mode-chip">BELUM TERHUBUNG</span
+            ><span id="mode-text"
+              >Hubungkan broker untuk menerima data kedua HP.</span
+            ><button class="btn text compact" id="mode-action">
+              Lihat contoh lokal
+            </button>
+          </div>
+          <div class="source-filter-bar">
+            <label for="source-filter">Sumber pengukuran</label
+            ><select id="source-filter">
+              <option value="all">Semua sumber</option>
+              <option value="browser">Browser</option>
+              <option value="termux">Termux + Python</option></select
+            ><span id="source-filter-note"
+              >Bandingkan perangkat dengan opsi, broker, dan kondisi yang
+              sama.</span
             >
           </div>
-          <div class="flex items-baseline gap-2">
-            <span
-              class="text-4xl font-extrabold text-white tracking-tight font-mono transition-all"
-              id="rtt-node2"
-              >--</span
-            >
-            <span
-              class="text-xs text-slate-400 uppercase tracking-wider font-semibold"
-              >ms Latency</span
-            >
-          </div>
-        </div>
-      </div>
-
-      <!-- 2. KONTROL & GRAFIK -->
-      <div class="glass-panel rounded-3xl p-6 relative">
-        <div
-          class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6"
-        >
-          <div>
-            <div class="flex items-center gap-2">
-              <i data-lucide="activity" class="w-5 h-5 text-amber-400"></i>
-              <h3 class="text-lg font-bold text-white">
-                Performansi Signal & Telemetri RTT
-              </h3>
+          <section class="metrics" aria-label="Ringkasan pengukuran">
+            <div class="metric">
+              <div class="metric-label">Perangkat terpantau</div>
+              <div class="metric-value" id="metric-devices">
+                0<span>perangkat</span>
+              </div>
+              <div class="metric-note" id="metric-devices-note">
+                Belum ada pengukuran
+              </div>
             </div>
-            <p class="text-xs text-slate-400 mt-0.5">
-              Analisis sinyal waktu nyata dengan kurva responsif multi-path
+            <div class="metric">
+              <div class="metric-label">Sampel berlokasi</div>
+              <div class="metric-value" id="metric-points">
+                0<span>sampel</span>
+              </div>
+              <div class="metric-note">
+                Sampel dengan koordinat yang dibagikan
+              </div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Rerata sampel sesi</div>
+              <div class="metric-value" id="metric-rssi">–<span>ms</span></div>
+              <div class="metric-note" id="metric-rssi-note">
+                Putar balik pesan aplikasi via MQTT
+              </div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Sampel perlu dicek</div>
+              <div class="metric-value" id="metric-weak">
+                0<span>sampel</span>
+              </div>
+              <div class="metric-note">Menurut ambang proyek</div>
+            </div>
+          </section>
+          <div class="view" id="view-map">
+            <div class="map-layout">
+              <section class="panel">
+                <div class="panel-head">
+                  <div>
+                    <h2>Sebaran kualitas koneksi</h2>
+                    <p id="map-subtitle">
+                      Koordinat perangkat yang dibagikan pengguna
+                    </p>
+                  </div>
+                  <button class="btn compact subtle" id="fit-map">
+                    Semua titik ↗
+                  </button>
+                </div>
+                <div class="map-tools">
+                  <div class="segmented" aria-label="Tampilan peta">
+                    <button class="active" id="map-points" type="button">
+                      Titik</button
+                    ><button id="map-grid" type="button">Grid 25 m</button
+                    ><button id="map-roads" type="button">Peta jalan</button>
+                  </div>
+                  <span id="map-view-note" class="small muted"
+                    >Plot koordinat · tanpa peta dasar</span
+                  >
+                </div>
+                <div class="map-wrap">
+                  <div
+                    id="signal-map"
+                    class="map-canvas"
+                    aria-label="Peta pengukuran latensi aplikasi"
+                  ></div>
+                  <div class="map-overlay" id="map-overlay">
+                    Belum ada pengukuran
+                  </div>
+                </div>
+                <div class="map-legend">
+                  <span class="legend-item"
+                    ><i class="dot"></i>Responsif ≤ 150 ms · kembali ≥ 90%</span
+                  ><span class="legend-item"
+                    ><i class="dot medium"></i>Cukup ≤ 500 ms · kembali ≥
+                    70%</span
+                  ><span class="legend-item"
+                    ><i class="dot weak"></i>Perlu dicek</span
+                  ><span class="map-fineprint"
+                    >Ambang proyek; bukan standar jaringan.</span
+                  >
+                </div>
+              </section>
+              <aside class="panel detail-panel">
+                <div class="detail-top">
+                  <span class="eyebrow">PERANGKAT DIPILIH</span>
+                  <div class="device-title">
+                    <h3 id="detail-name">Pilih perangkat</h3>
+                    <span class="chip grey" id="detail-status">Menunggu</span>
+                  </div>
+                  <div class="signal-value" id="detail-rssi">
+                    – <small>ms</small>
+                  </div>
+                  <p class="signal-description" id="detail-signal">
+                    Latensi putar balik aplikasi MQTT
+                  </p>
+                  <svg
+                    class="mini-chart"
+                    id="detail-chart"
+                    viewBox="0 0 240 55"
+                    role="img"
+                    aria-label="Riwayat latensi perangkat"
+                  ></svg>
+                </div>
+                <div class="detail-rows">
+                  <div class="detail-row">
+                    <span>Sumber</span><strong id="detail-source">–</strong>
+                  </div>
+                  <div class="detail-row">
+                    <span>Simpangan baku (σ)</span
+                    ><strong class="mono" id="detail-std">– ms</strong>
+                  </div>
+                  <div class="detail-row">
+                    <span>Probe kembali</span
+                    ><strong class="mono" id="detail-success">– %</strong>
+                  </div>
+                  <div class="detail-row">
+                    <span>Accelerometer RMS</span
+                    ><strong class="mono" id="detail-motion">– m/s²</strong>
+                  </div>
+                  <div class="detail-row">
+                    <span>Gyroscope RMS</span
+                    ><strong class="mono" id="detail-gyro">– rad/s</strong>
+                  </div>
+                  <div class="detail-row">
+                    <span>Akurasi lokasi</span
+                    ><strong class="mono" id="detail-gps">–</strong>
+                  </div>
+                  <div class="detail-row">
+                    <span>Pembaruan</span><strong id="detail-time">–</strong>
+                  </div>
+                </div>
+                <div class="detail-actions">
+                  <button class="btn primary" id="sample-now" disabled>
+                    Minta sampel sekarang
+                  </button>
+                  <p id="command-status" aria-live="polite">
+                    Perintah tersedia setelah perangkat aktif.
+                  </p>
+                </div>
+              </aside>
+            </div>
+            <div class="bottom-grid">
+              <section class="panel">
+                <div class="panel-head">
+                  <h2>Perangkat pengukuran</h2>
+                  <button class="btn text compact" data-go-devices>
+                    Lihat semua →
+                  </button>
+                </div>
+                <div class="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Perangkat</th>
+                        <th>Rata-rata latensi</th>
+                        <th>Kualitas</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody id="device-table"></tbody>
+                  </table>
+                </div>
+              </section>
+              <section class="panel">
+                <div class="insight">
+                  <span class="chip" style="margin-bottom: 12px"
+                    >Catatan pengamatan</span
+                  >
+                  <h3 id="insight-title">Mulai pengukuran bersama.</h3>
+                  <p id="insight-copy">
+                    Buka kontributor pada dua HP dengan ID berbeda, lalu gunakan
+                    broker dan Project ID yang sama.
+                  </p>
+                </div>
+                <div class="insight-foot">
+                  ⓘ Ambang kualitas merupakan aturan proyek.
+                </div>
+              </section>
+            </div>
+          </div>
+          <section class="view panel" id="view-devices" hidden>
+            <div class="panel-head">
+              <div>
+                <h2>Seluruh perangkat</h2>
+                <p>Pilih perangkat untuk rincian dan kontrol.</p>
+              </div>
+              <label class="small" for="interval-select">Interval</label
+              ><select id="interval-select">
+                <option value="5">5 detik</option>
+                <option value="10">10 detik</option>
+                <option value="15">15 detik</option>
+                <option value="30">30 detik</option></select
+              ><button class="btn compact" id="set-interval">
+                Terapkan ke perangkat dipilih
+              </button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Perangkat</th>
+                    <th>Latensi</th>
+                    <th>Probe kembali</th>
+                    <th>Accelerometer</th>
+                    <th>Gyroscope</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="all-device-table"></tbody>
+              </table>
+            </div>
+            <p
+              class="small muted"
+              style="padding: 15px 20px"
+              id="selected-device-label"
+            >
+              Belum ada perangkat dipilih.
             </p>
-          </div>
-
-          <div class="flex flex-wrap items-center gap-2">
-            <button
-              id="btn-chart-toggle"
-              onclick="toggleChartMonitoring()"
-              class="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-semibold text-xs tracking-wider uppercase transition-all shadow-lg shadow-amber-500/20 flex items-center gap-1.5"
-            >
-              <i data-lucide="play" class="w-3.5 h-3.5"></i> Mulai Grafik
-            </button>
-            <button
-              onclick="zoomIn()"
-              class="px-3 py-2 rounded-xl glass-panel hover:bg-white/10 text-amber-300 text-xs font-semibold transition-all"
-            >
-              Zoom In (+)
-            </button>
-            <button
-              onclick="zoomOut()"
-              class="px-3 py-2 rounded-xl glass-panel hover:bg-white/10 text-amber-300 text-xs font-semibold transition-all"
-            >
-              Zoom Out (-)
-            </button>
-            <button
-              onclick="resetZoomChart()"
-              class="px-3 py-2 rounded-xl glass-panel hover:bg-white/10 text-slate-400 text-xs font-semibold transition-all"
-            >
-              Reset
-            </button>
-          </div>
-        </div>
-
-        <div class="w-full h-[400px] relative pt-2">
-          <canvas id="chart"></canvas>
-        </div>
+          </section>
+          <section class="view panel" id="view-activity" hidden>
+            <div class="panel-head">
+              <div>
+                <h2>Aktivitas sesi</h2>
+                <p>Perintah, konfirmasi perangkat, dan status koneksi.</p>
+              </div>
+              <button class="btn compact" id="clear-log">Bersihkan</button>
+            </div>
+            <ol class="log-list" id="activity-log"></ol>
+          </section>
+          <section class="view" id="view-guide" hidden>
+            <div class="guide-layout">
+              <article class="panel">
+                <div class="panel-head"><h2>Mulai dari dua HP</h2></div>
+                <div class="guide-body">
+                  <ol>
+                    <li>
+                      Pilih opsi yang sama pada kedua HP: Browser melalui HTTPS,
+                      atau Termux + Python. Gunakan satu jaringan untuk demo
+                      sesuai tugas.
+                    </li>
+                    <li>
+                      Isi Project ID dan broker WSS yang sama, lalu ID berbeda:
+                      hp-a dan hp-b.
+                    </li>
+                    <li>
+                      Pada Browser, klik <strong>Mulai pengukuran</strong> dan
+                      izinkan sensor. Pada Termux, ikuti panduan Android untuk
+                      menjalankan edge Python.
+                    </li>
+                    <li>
+                      Bagikan koordinat bila diperlukan untuk peta. Gunakan
+                      lokasi uji nonpribadi pada broker publik.
+                    </li>
+                    <li>
+                      Hubungkan dashboard. Minta sampel dari HP dan periksa
+                      konfirmasi ACK.
+                    </li>
+                  </ol>
+                  <a class="btn primary" href="index.html">Buka Browser</a>
+                  <a class="btn" href="index.html#termux-option"
+                    >Panduan Termux</a
+                  >
+                </div>
+              </article>
+              <article class="panel">
+                <div class="panel-head"><h2>Makna pengukuran</h2></div>
+                <div class="guide-body">
+                  <p>
+                    <strong>Latensi aplikasi MQTT</strong> ialah waktu kirim
+                    pesan sampai pesan kembali melalui broker. Angka ini
+                    mencakup jalur internet, broker, dan penjadwalan aplikasi.
+                    Ini bukan kekuatan sinyal radio dalam dBm atau ping ICMP.
+                  </p>
+                  <p>
+                    <strong>Rata-rata dan simpangan baku</strong> merangkum
+                    latensi. <strong>Accelerometer RMS</strong> merangkum
+                    gerakan.
+                    <strong>Gyroscope RMS dan total rotasi</strong> memakai
+                    sensor rotasi bila tersedia.
+                  </p>
+                  <p>
+                    Nilai kosong berarti sensor atau izin belum tersedia; nol
+                    hanya tampil jika sensor mengukurnya. Pastikan kedua HP
+                    mendukung sensor yang dibutuhkan untuk membuktikan tugas.
+                  </p>
+                  <p>
+                    Bandingkan perangkat dengan opsi Browser atau Termux yang
+                    sama. Saat kedua sumber tampil bersama, dashboard memisahkan
+                    data dan menonaktifkan rerata serta grid gabungan. Grid
+                    hanya mewarnai sel yang memiliki sampel. Dua HP belum
+                    membuktikan kualitas seluruh wilayah. MQTT adalah protokol;
+                    HiveMQ adalah broker.
+                  </p>
+                </div>
+              </article>
+            </div>
+          </section>
+          <footer class="footer">
+            <span>SigHeat · Pengamatan koneksi berbasis komunitas</span
+            ><span id="footer-note">Belum terhubung · Menunggu pengukuran</span>
+          </footer>
+        </main>
       </div>
     </div>
-
-    <script>
-      lucide.createIcons();
-
-      const projectId = "sigheat_kelompok_07";
-      let isChartActive = false;
-      let chartTimer = null;
-
-      let nodeData = {
-        node1: { rtt: null, zone: "Waiting...", lastSeen: 0 },
-        node2: { rtt: null, zone: "Waiting...", lastSeen: 0 },
-      };
-
-      const ctx = document.getElementById("chart").getContext("2d");
-
-      const gradAmber = ctx.createLinearGradient(0, 0, 0, 400);
-      gradAmber.addColorStop(0, "rgba(245, 158, 11, 0.35)");
-      gradAmber.addColorStop(1, "rgba(245, 158, 11, 0.0)");
-
-      const gradBlue = ctx.createLinearGradient(0, 0, 0, 400);
-      gradBlue.addColorStop(0, "rgba(59, 130, 246, 0.35)");
-      gradBlue.addColorStop(1, "rgba(59, 130, 246, 0.0)");
-
-      const chart = new Chart(ctx, {
-        type: "line",
-        data: {
-          labels: [],
-          datasets: [
-            {
-              label: "Node 1 (Area A)",
-              borderColor: "#f59e0b",
-              backgroundColor: gradAmber,
-              data: [],
-              borderWidth: 2.5,
-              tension: 0.45,
-              fill: true,
-              pointBackgroundColor: "#f59e0b",
-              pointBorderColor: "#02040a",
-              pointRadius: 4,
-              pointHoverRadius: 6,
-            },
-            {
-              label: "Node 2 (Area B)",
-              borderColor: "#3b82f6",
-              backgroundColor: gradBlue,
-              data: [],
-              borderWidth: 2.5,
-              tension: 0.45,
-              fill: true,
-              pointBackgroundColor: "#3b82f6",
-              pointBorderColor: "#02040a",
-              pointRadius: 4,
-              pointHoverRadius: 6,
-            },
-          ],
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: {
-              position: "top",
-              align: "end",
-              labels: {
-                color: "#94a3b8",
-                font: { family: "Inter", size: 12, weight: "500" },
-                usePointStyle: true,
-                boxWidth: 8,
-              },
-            },
-            zoom: {
-              zoom: {
-                wheel: { enabled: true },
-                pinch: { enabled: true },
-                mode: "xy",
-              },
-            },
-          },
-          scales: {
-            x: {
-              grid: { color: "rgba(255, 255, 255, 0.04)" },
-              ticks: { color: "#64748b", font: { family: "Inter", size: 11 } },
-            },
-            y: {
-              beginAtZero: true,
-              grid: { color: "rgba(255, 255, 255, 0.04)" },
-              ticks: { color: "#64748b", font: { family: "Inter", size: 11 } },
-            },
-          },
-        },
-      });
-
-      const client = new Paho.MQTT.Client(
-        "broker.hivemq.com",
-        8884,
-        "/mqtt",
-        "dash_" + Date.now(),
-      );
-
-      client.onMessageArrived = (msg) => {
-        try {
-          const data = JSON.parse(msg.payloadString);
-          const now = Date.now();
-
-          // Jika menerima pesan disonnect eksplisit
-          if (data.status === "OFFLINE") {
-            if (data.device_id === "node1") {
-              nodeData.node1.rtt = null;
-              nodeData.node1.lastSeen = 0;
-              document.getElementById("rtt-node1").innerText = "--";
-              updateStatus("st-node1", "WAITING");
-            } else if (data.device_id === "node2") {
-              nodeData.node2.rtt = null;
-              nodeData.node2.lastSeen = 0;
-              document.getElementById("rtt-node2").innerText = "--";
-              updateStatus("st-node2", "WAITING");
-            }
-            return;
-          }
-
-          if (data.device_id === "node1") {
-            nodeData.node1.rtt = data.smoothed_rtt_ms;
-            nodeData.node1.zone = data.status_zone;
-            nodeData.node1.lastSeen = now;
-            document.getElementById("rtt-node1").innerText =
-              data.smoothed_rtt_ms;
-            updateStatus("st-node1", data.status_zone);
-          } else if (data.device_id === "node2") {
-            nodeData.node2.rtt = data.smoothed_rtt_ms;
-            nodeData.node2.zone = data.status_zone;
-            nodeData.node2.lastSeen = now;
-            document.getElementById("rtt-node2").innerText =
-              data.smoothed_rtt_ms;
-            updateStatus("st-node2", data.status_zone);
-          }
-        } catch (e) {}
-      };
-
-      // Watchdog Timeout (3 Detik tanpa data -> Smooth Waiting)
-      setInterval(() => {
-        const now = Date.now();
-        if (
-          nodeData.node1.lastSeen > 0 &&
-          now - nodeData.node1.lastSeen > 3000
-        ) {
-          nodeData.node1.rtt = null;
-          nodeData.node1.lastSeen = 0;
-          document.getElementById("rtt-node1").innerText = "--";
-          updateStatus("st-node1", "WAITING");
-        }
-        if (
-          nodeData.node2.lastSeen > 0 &&
-          now - nodeData.node2.lastSeen > 3000
-        ) {
-          nodeData.node2.rtt = null;
-          nodeData.node2.lastSeen = 0;
-          document.getElementById("rtt-node2").innerText = "--";
-          updateStatus("st-node2", "WAITING");
-        }
-      }, 1000);
-
-      function startChartLoop(saveState = true) {
-        isChartActive = true;
-        const btn = document.getElementById("btn-chart-toggle");
-        if (btn) {
-          btn.className =
-            "px-4 py-2 rounded-xl bg-rose-500 hover:bg-rose-600 text-white font-semibold text-xs tracking-wider uppercase transition-all shadow-lg shadow-rose-500/20 flex items-center gap-1.5";
-          btn.innerHTML = `<i data-lucide="square" class="w-3.5 h-3.5"></i> Hentikan Grafik`;
-          lucide.createIcons();
-        }
-        if (saveState) localStorage.setItem("sigheat_chart_running", "true");
-
-        if (!chartTimer) {
-          chartTimer = setInterval(() => {
-            const time = new Date().toLocaleTimeString();
-
-            if (chart.data.labels.length > 15) {
-              chart.data.labels.shift();
-              chart.data.datasets[0].data.shift();
-              chart.data.datasets[1].data.shift();
-            }
-
-            chart.data.labels.push(time);
-            chart.data.datasets[0].data.push(nodeData.node1.rtt);
-            chart.data.datasets[1].data.push(nodeData.node2.rtt);
-            chart.update();
-          }, 2000);
-        }
-      }
-
-      function stopChartLoop(saveState = true) {
-        isChartActive = false;
-        const btn = document.getElementById("btn-chart-toggle");
-        if (btn) {
-          btn.className =
-            "px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-semibold text-xs tracking-wider uppercase transition-all shadow-lg shadow-amber-500/20 flex items-center gap-1.5";
-          btn.innerHTML = `<i data-lucide="play" class="w-3.5 h-3.5"></i> Mulai Grafik`;
-          lucide.createIcons();
-        }
-        if (saveState) localStorage.removeItem("sigheat_chart_running");
-
-        if (chartTimer) {
-          clearInterval(chartTimer);
-          chartTimer = null;
-        }
-      }
-
-      function toggleChartMonitoring() {
-        if (!isChartActive) {
-          startChartLoop(true);
-        } else {
-          stopChartLoop(true);
-        }
-      }
-
-      function zoomIn() {
-        chart.zoom(1.1);
-      }
-      function zoomOut() {
-        chart.zoom(0.9);
-      }
-      function resetZoomChart() {
-        chart.resetZoom();
-      }
-
-      client.connect({
-        useSSL: true,
-        onSuccess: () => {
-          client.subscribe(`sigheat/${projectId}/edge/+/telemetry`);
-          if (localStorage.getItem("sigheat_chart_running") === "true") {
-            startChartLoop(false);
-          }
-        },
-      });
-
-      function updateStatus(id, zone) {
-        const el = document.getElementById(id);
-        if (!el) return;
-
-        if (zone === "WAITING" || zone === "Waiting...") {
-          el.innerText = "Waiting...";
-          el.className =
-            "status-badge px-3 py-1 rounded-full text-xs font-bold bg-slate-800 text-slate-400 border border-slate-700";
-          return;
-        }
-        el.innerText = zone;
-        if (zone === "GOOD_ZONE") {
-          el.className =
-            "status-badge px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
-        } else if (zone === "MODERATE_ZONE") {
-          el.className =
-            "status-badge px-3 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30";
-        } else {
-          el.className =
-            "status-badge px-3 py-1 rounded-full text-xs font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30";
-        }
-      }
-    </script>
+    <dialog class="modal" id="connection-dialog">
+      <form id="connection-form">
+        <div class="modal-head">
+          <h2>Koneksi proyek</h2>
+          <button
+            type="button"
+            class="close-btn"
+            data-close-dialog
+            aria-label="Tutup pengaturan"
+          >
+            ×
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="form-field">
+            <label for="broker-url">MQTT WebSocket TLS</label
+            ><input
+              id="broker-url"
+              type="url"
+              value="wss://broker.hivemq.com:8884/mqtt"
+              required
+              autocomplete="off"
+            />
+          </div>
+          <div class="form-field">
+            <label for="project-id">Project ID</label
+            ><input
+              id="project-id"
+              required
+              maxlength="48"
+              pattern="[A-Za-z0-9_-]+"
+              placeholder="sigheat_kelompok_07"
+              autocomplete="off"
+            /><small>Sama dengan proyek di kedua HP.</small>
+          </div>
+          <div class="form-row">
+            <div class="form-field">
+              <label for="broker-username">Username (opsional)</label
+              ><input id="broker-username" autocomplete="off" maxlength="128" />
+            </div>
+            <div class="form-field">
+              <label for="broker-password">Password (opsional)</label
+              ><input
+                id="broker-password"
+                type="password"
+                autocomplete="off"
+                maxlength="256"
+              />
+            </div>
+          </div>
+          <p class="connection-note">
+            Broker publik dapat diakses orang lain. Gunakan Project ID unik dan
+            lokasi uji nonpribadi. Kredensial hanya digunakan selama sesi ini.
+          </p>
+          <p class="form-error" id="connection-error" aria-live="polite"></p>
+          <div class="modal-actions">
+            <button type="button" class="btn" data-close-dialog>Batal</button
+            ><button type="submit" class="btn primary" id="connect-button">
+              Hubungkan
+            </button>
+          </div>
+        </div>
+      </form>
+    </dialog>
+    <dialog class="modal export-modal" id="export-dialog">
+      <div class="modal-head">
+        <h2>Ekspor hasil sesi</h2>
+        <button
+          type="button"
+          class="close-btn"
+          id="close-export"
+          aria-label="Tutup ekspor"
+        >
+          ×
+        </button>
+      </div>
+      <div class="modal-body">
+        <p id="export-summary" class="small muted"></p>
+        <label class="small" for="export-preview">Pratinjau CSV</label
+        ><textarea id="export-preview" readonly spellcheck="false"></textarea>
+        <div class="modal-actions">
+          <button class="btn" id="copy-csv">Salin CSV</button
+          ><button class="btn primary" id="download-csv">Unduh CSV</button>
+        </div>
+      </div>
+    </dialog>
+    <div class="toast" id="toast" role="status" hidden></div>
+    <script src="assets/vendor/leaflet.js"></script>
+    <script src="assets/vendor/paho-mqtt.min.js"></script>
+    <script src="assets/core.js"></script>
+    <script src="assets/edge.js"></script>
+    <script src="assets/app.js"></script>
   </body>
 </html>

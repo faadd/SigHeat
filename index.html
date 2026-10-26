@@ -1,432 +1,327 @@
 <!doctype html>
-<html lang="id" class="dark">
+<html lang="id">
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SigHeat · Mobile Edge Node</title>
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <!-- Paho MQTT -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
-    <style>
-      @import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
-
-      body {
-        background-color: #02040a;
-        color: #cbd5e1;
-        font-family: "Inter", sans-serif;
-      }
-
-      .bg-noise {
-        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
-      }
-
-      .glass-panel {
-        background: rgba(15, 23, 42, 0.4);
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        box-shadow:
-          0 20px 50px rgba(0, 0, 0, 0.5),
-          inset 0 1px 0 rgba(255, 255, 255, 0.1);
-      }
-
-      .bg-grid-pattern {
-        background-image:
-          linear-gradient(
-            to right,
-            rgba(255, 255, 255, 0.03) 1px,
-            transparent 1px
-          ),
-          linear-gradient(
-            to bottom,
-            rgba(255, 255, 255, 0.03) 1px,
-            transparent 1px
-          );
-        background-size: 24px 24px;
-      }
-    </style>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#246c51" />
+    <meta
+      name="description"
+      content="Ukur latensi aplikasi MQTT dan sensor gerak langsung dari browser HP dengan SigHeat."
+    />
+    <title>SigHeat · Kontributor</title>
+    <link rel="stylesheet" href="assets/style.css" />
   </head>
-  <body
-    class="min-h-screen relative overflow-x-hidden selection:bg-amber-500/30 text-slate-300 pb-12"
-  >
-    <div class="fixed inset-0 bg-noise pointer-events-none z-0"></div>
-    <div
-      class="fixed top-[10%] left-[10%] w-[400px] h-[400px] bg-amber-500/10 rounded-full blur-[130px] pointer-events-none z-0"
-    ></div>
-    <div
-      class="fixed bottom-[10%] right-[10%] w-[450px] h-[450px] bg-indigo-600/10 rounded-full blur-[140px] pointer-events-none z-0"
-    ></div>
-    <div
-      class="fixed inset-0 bg-grid-pattern opacity-60 pointer-events-none z-0"
-    ></div>
-
-    <!-- MODAL CUSTOM PERINGATAN (Ganti Alert Bawaan Browser) -->
-    <div
-      id="custom-modal"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm hidden px-4"
-    >
-      <div
-        class="glass-panel rounded-3xl p-6 max-w-sm w-full border border-rose-500/30 shadow-2xl text-center space-y-4 animate-in fade-in zoom-in duration-200"
-      >
-        <div
-          class="w-12 h-12 rounded-2xl bg-rose-500/20 text-rose-400 border border-rose-500/30 flex items-center justify-center mx-auto"
+  <body data-page="participant">
+    <main class="participant-shell">
+      <header class="participant-header">
+        <a href="dashboard.html" class="brand" aria-label="SigHeat dashboard"
+          ><span class="brand-symbol" aria-hidden="true"
+            ><i></i><i></i><i></i><i></i></span
+          >SigHeat<span style="color: #4d8155">.</span></a
+        ><a class="btn" href="dashboard.html"
+          >Buka dashboard <span aria-hidden="true">↗</span></a
         >
-          <i data-lucide="alert-triangle" class="w-6 h-6"></i>
-        </div>
-        <div>
-          <h3 class="text-lg font-bold text-white mb-1">
-            Peran Sedang Digunakan
-          </h3>
-          <p id="modal-message" class="text-xs text-slate-400 leading-relaxed">
-            Peran ini sedang aktif digunakan oleh perangkat lain.
-          </p>
-        </div>
-        <button
-          onclick="closeModal()"
-          class="w-full py-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs tracking-wider uppercase transition-all shadow-lg shadow-amber-500/20"
-        >
-          Mengerti, Pilih Peran Lain
-        </button>
-      </div>
-    </div>
-
-    <div class="max-w-md mx-auto px-4 pt-8 relative z-10">
-      <!-- Header -->
-      <header
-        class="flex items-center gap-3 mb-6 pb-4 border-b border-white/10 glass-panel rounded-2xl px-6 py-4"
-      >
-        <div
-          class="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-200 to-amber-500 flex items-center justify-center text-slate-950 font-bold shadow-lg shadow-amber-500/20"
-        >
-          <i data-lucide="radio" class="w-6 h-6"></i>
-        </div>
-        <div>
-          <h1
-            class="text-lg font-bold tracking-tight text-white flex items-center gap-2"
-          >
-            Mobile Edge
-            <span
-              class="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20"
-              >Node Unit</span
-            >
-          </h1>
-          <p class="text-xs text-slate-400">
-            SigHeat Field Telemetry Transmitter
-          </p>
-        </div>
       </header>
-
-      <!-- Control Card -->
-      <div class="glass-panel rounded-3xl p-6 mb-6 shadow-xl space-y-4">
-        <div>
-          <label
-            class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2 flex items-center gap-1.5"
-          >
-            <i
-              data-lucide="folder-git-2"
-              class="w-3.5 h-3.5 text-amber-400"
-            ></i>
-            Project ID Kelompok
-          </label>
-          <input
-            type="text"
-            id="project-id"
-            value="sigheat_kelompok_07"
-            class="w-full bg-slate-950/60 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-amber-500 transition-colors font-mono"
-          />
-        </div>
-
-        <div>
-          <label
-            class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2 flex items-center gap-1.5"
-          >
-            <i data-lucide="cpu" class="w-3.5 h-3.5 text-amber-400"></i> Pilih
-            Peran Perangkat
-          </label>
-          <select
-            id="device-role"
-            class="w-full bg-slate-950/60 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-amber-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <option value="node1" class="bg-slate-900 text-white">
-              Edge 1 (HP Area A)
-            </option>
-            <option value="node2" class="bg-slate-900 text-white">
-              Edge 2 (HP Area B)
-            </option>
-          </select>
-        </div>
-
-        <button
-          id="main-btn"
-          onclick="toggleTelemetry()"
-          class="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs tracking-wider uppercase transition-all shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2"
+      <div class="participant-intro">
+        <span class="chip" style="margin-bottom: 14px"
+          >KONTRIBUTOR · BROWSER HP</span
         >
-          <i data-lucide="send" class="w-4 h-4"></i> Mulai Mengirim Telemetri
-        </button>
+        <h1>Satu titik. Satu pengukuran.</h1>
+        <p>
+          Ukur waktu putar balik pesan MQTT dan gerakan HP langsung dari
+          browser. Gunakan dua perangkat dengan ID berbeda untuk membandingkan
+          lokasi.
+        </p>
       </div>
-
-      <!-- Telemetry Status Card -->
-      <div class="glass-panel rounded-3xl p-6 mb-6 space-y-4">
-        <div class="flex justify-between items-center">
-          <span
-            class="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5"
-          >
-            <i data-lucide="wifi" class="w-3.5 h-3.5 text-slate-400"></i> Status
-            MQTT
-          </span>
-          <span
-            id="mqtt-status"
-            class="px-3 py-1 rounded-full text-xs font-bold bg-slate-800 text-rose-400 border border-rose-500/30"
-            >Terputus</span
-          >
-        </div>
-
-        <div
-          class="flex justify-between items-center border-t border-white/5 pt-3"
+      <nav class="option-switch" aria-label="Pilihan menjalankan SigHeat">
+        <a class="active" href="#edge-form" aria-current="page"
+          ><strong>Opsi A · Browser</strong
+          ><span>Langsung dari halaman ini, tanpa instalasi.</span></a
+        ><a href="#termux-option"
+          ><strong>Opsi B · Termux + Python</strong
+          ><span>Android dengan runtime dan sensor Termux:API.</span></a
         >
-          <span
-            class="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5"
-          >
-            <i data-lucide="timer" class="w-3.5 h-3.5 text-slate-400"></i>
-            Latensi RTT
-          </span>
-          <strong id="lbl-rtt" class="text-xl font-mono text-white"
-            >-- ms</strong
-          >
-        </div>
-
-        <div
-          class="flex justify-between items-center border-t border-white/5 pt-3"
+      </nav>
+      <details class="termux-option" id="termux-option">
+        <summary>Panduan opsi Termux + Python</summary>
+        <p>
+          Pasang aplikasi Termux dan Termux:API dari sumber yang sama. Beri izin
+          sensor/lokasi sesuai kebutuhan. Ekstrak proyek ke HP, lalu buka folder
+          proyek di Termux.
+        </p>
+        <pre class="code-block">
+pkg update
+pkg install python termux-api
+python -m pip install -r requirements.txt
+cp .env.example .env
+python termux_edge.py --check-sensors</pre
         >
-          <span
-            class="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5"
-          >
-            <i data-lucide="activity" class="w-3.5 h-3.5 text-slate-400"></i>
-            Status Zona
-          </span>
-          <strong
-            id="lbl-zone"
-            class="text-xs font-semibold text-amber-400 tracking-wider"
-            >--</strong
-          >
-        </div>
+        <p>
+          Jalankan HP pertama dengan perintah berikut. Pada HP kedua, ganti
+          <span class="mono">hp-a</span> menjadi <span class="mono">hp-b</span>.
+          Ganti Project ID contoh agar sama dengan dashboard kelompok.
+        </p>
+        <pre class="code-block">
+python termux_edge.py hp-a --project sigheat_kelompok_07</pre
+        >
+        <p>
+          Secara bawaan, edge menggunakan broker WSS publik yang tertera pada
+          formulir Browser. Atur broker/kredensial melalui
+          <span class="mono">.env</span> bila memakai akun kelompok. Tambahkan
+          <span class="mono">--share-location</span> hanya jika ingin membagikan
+          koordinat untuk peta.
+        </p>
+        <p>
+          Gunakan dua Browser atau dua Termux pada satu jaringan untuk
+          perbandingan yang setara. Panduan lengkap tersedia dalam
+          <span class="mono">docs/ANDROID.md</span> dan
+          <span class="mono">README.md</span> di ZIP proyek.
+        </p>
+      </details>
+      <div id="secure-context-note" class="demo-strip" hidden>
+        Pengukuran membutuhkan HTTPS atau localhost. Buka alamat HTTPS aplikasi
+        ini pada kedua HP.
       </div>
-
-      <!-- Log Aktivitas -->
-      <div class="glass-panel rounded-3xl p-6">
-        <label
-          class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-1.5"
-        >
-          <i data-lucide="terminal" class="w-3.5 h-3.5 text-amber-400"></i> Log
-          Aktivitas
-        </label>
-        <div
-          id="log"
-          class="bg-slate-950/80 border border-white/5 rounded-2xl p-4 font-mono text-xs text-amber-300 h-36 overflow-y-auto space-y-1"
-        >
-          <div>> Menunggu start...</div>
-        </div>
+      <div class="participant-grid">
+        <section class="panel">
+          <form class="participant-content" id="edge-form">
+            <div class="step-head">
+              <span class="step-number">1</span>
+              <h2>Hubungkan proyek kelompok</h2>
+            </div>
+            <div class="form-row">
+              <div class="form-field">
+                <label for="edge-project">Project ID</label
+                ><input
+                  id="edge-project"
+                  required
+                  maxlength="48"
+                  pattern="[A-Za-z0-9_-]+"
+                  placeholder="sigheat_kelompok_07"
+                  autocomplete="off"
+                /><small>Sama pada kedua HP dan dashboard.</small>
+              </div>
+              <div class="form-field">
+                <label for="edge-device">ID perangkat</label
+                ><input
+                  id="edge-device"
+                  required
+                  maxlength="48"
+                  pattern="[A-Za-z0-9_-]+"
+                  value="hp-a"
+                  autocomplete="off"
+                /><small>Gunakan hp-b pada HP kedua.</small>
+              </div>
+            </div>
+            <div class="form-field">
+              <label for="edge-broker">MQTT WebSocket TLS</label
+              ><input
+                id="edge-broker"
+                type="url"
+                required
+                value="wss://broker.hivemq.com:8884/mqtt"
+                autocomplete="off"
+              /><small>WSS broker yang sama pada semua perangkat.</small>
+            </div>
+            <details class="advanced-fields">
+              <summary>Kredensial dan interval</summary>
+              <div class="form-row">
+                <div class="form-field">
+                  <label for="edge-username">Username (opsional)</label
+                  ><input
+                    id="edge-username"
+                    maxlength="128"
+                    autocomplete="off"
+                  />
+                </div>
+                <div class="form-field">
+                  <label for="edge-password">Password (opsional)</label
+                  ><input
+                    id="edge-password"
+                    type="password"
+                    maxlength="256"
+                    autocomplete="off"
+                  />
+                </div>
+              </div>
+              <div class="form-field">
+                <label for="edge-interval">Interval pengukuran</label
+                ><select id="edge-interval">
+                  <option value="5" selected>5 detik</option>
+                  <option value="10">10 detik</option>
+                  <option value="15">15 detik</option>
+                  <option value="30">30 detik</option></select
+                ><small
+                  >Ubah interval saat sesi berhenti atau melalui
+                  dashboard.</small
+                >
+              </div>
+            </details>
+            <hr class="step-separator" />
+            <div class="step-head">
+              <span class="step-number">2</span>
+              <h2>Pilih data yang dibagikan</h2>
+            </div>
+            <p class="step-copy">
+              Browser meminta izin sensor gerak saat Anda mulai. Data mencakup
+              hasil olahan accelerometer dan gyroscope jika tersedia.
+            </p>
+            <label class="share-location-label"
+              ><input type="checkbox" id="edge-share-location" /> Bagikan lokasi
+              untuk peta</label
+            >
+            <p class="connection-note" style="margin-top: 10px">
+              Broker publik dapat diakses orang lain. Gunakan Project ID unik
+              dan lokasi uji nonpribadi. Kredensial hanya disimpan selama sesi.
+            </p>
+            <hr class="step-separator" />
+            <div class="step-head">
+              <span class="step-number">3</span>
+              <h2>Mulai dan tetap di halaman ini</h2>
+            </div>
+            <p class="step-copy">
+              Letakkan HP pada titik uji dan tunggu beberapa sampel. Pengukuran
+              dijeda saat tab berada di latar belakang; mulai kembali saat Anda
+              siap.
+            </p>
+            <p class="form-error" id="edge-error" role="alert"></p>
+            <div class="edge-actions">
+              <button class="btn primary" id="edge-start" type="submit">
+                Mulai pengukuran <span aria-hidden="true">↗</span></button
+              ><button class="btn" id="edge-stop" type="button" disabled>
+                Hentikan
+              </button>
+            </div>
+            <p
+              class="small muted"
+              id="edge-state"
+              style="margin-top: 12px"
+              aria-live="polite"
+            >
+              Belum berjalan. Tidak ada data yang dikirim.
+            </p>
+          </form>
+        </section>
+        <aside>
+          <section class="panel">
+            <div class="participant-summary">
+              <div class="device-title" style="margin: 0">
+                <h2>Sampel terakhir</h2>
+                <span class="chip grey" id="participant-status">Siap</span>
+              </div>
+              <p style="margin-top: 8px">Latensi putar balik aplikasi MQTT</p>
+              <div class="signal-value" id="participant-signal">
+                – <small>ms</small>
+              </div>
+              <p id="participant-source">
+                Belum ada balasan probe dari broker.
+              </p>
+              <div class="live-reading-grid">
+                <div>
+                  <span>Rata-rata</span><strong id="edge-mean">– ms</strong>
+                </div>
+                <div>
+                  <span>Simpangan baku</span><strong id="edge-std">– ms</strong>
+                </div>
+                <div>
+                  <span>Probe kembali</span
+                  ><strong id="edge-success">– %</strong>
+                </div>
+                <div>
+                  <span>Probe pada jendela</span
+                  ><strong id="edge-probes">0</strong>
+                </div>
+              </div>
+              <button
+                class="btn"
+                id="participant-sample"
+                type="button"
+                disabled
+              >
+                Ukur sekarang
+              </button>
+              <p
+                id="command-status"
+                style="font-size: 11px; margin-top: 9px"
+                aria-live="polite"
+              >
+                Permintaan dari dashboard akan muncul di aktivitas.
+              </p>
+            </div>
+          </section>
+          <section class="panel" style="margin-top: 20px">
+            <div class="participant-summary">
+              <h2>Sensor perangkat</h2>
+              <p style="margin-top: 10px">
+                Letakkan HP diam agar titik dapat dibandingkan. Sensor gerak
+                membantu memeriksa kestabilan posisi HP.
+              </p>
+              <div class="sensor-reading">
+                <span>Accelerometer RMS</span
+                ><strong id="edge-accel">Belum terbaca</strong
+                ><small id="edge-accel-mode"
+                  >Menunggu izin dan sampel sensor.</small
+                >
+              </div>
+              <div class="sensor-reading">
+                <span>Gyroscope RMS</span
+                ><strong id="edge-gyro">Belum terbaca</strong
+                ><small id="edge-rotation">Total rotasi: belum terbaca</small>
+              </div>
+              <div class="sensor-reading">
+                <span>Lokasi perangkat</span
+                ><strong id="edge-gps">Tidak dibagikan</strong
+                ><small id="edge-gps-accuracy"
+                  >Opsional untuk menampilkan titik peta.</small
+                >
+              </div>
+              <p
+                id="edge-sensor-errors"
+                class="small sensor-error"
+                aria-live="polite"
+              ></p>
+            </div>
+          </section>
+          <section class="panel" style="margin-top: 20px">
+            <div class="participant-summary">
+              <h2>Yang Anda ukur</h2>
+              <p style="margin-top: 10px">
+                Latensi ini mencakup jalur internet, broker, dan kerja browser.
+                Angka tersebut bukan dBm, kecepatan unduh, atau ping ICMP.
+              </p>
+              <p style="margin-top: 10px">
+                Jika sensor tidak tersedia, SigHeat menampilkan status tersebut.
+                Gunakan HP yang mendukung sensor untuk pengujian tugas.
+              </p>
+            </div>
+          </section>
+        </aside>
       </div>
-    </div>
-
-    <script>
-      lucide.createIcons();
-
-      let isRunning = false;
-      let client = null;
-      let timer = null;
-      let sequence = 0;
-      let currentRtt = 0;
-      let activeSenderId = null;
-      let myUniqueId = "";
-
-      function log(msg) {
-        const box = document.getElementById("log");
-        box.innerHTML += `<div>> ${msg}</div>`;
-        box.scrollTop = box.scrollHeight;
-      }
-
-      function showModal(message) {
-        document.getElementById("modal-message").innerText = message;
-        document.getElementById("custom-modal").classList.remove("hidden");
-      }
-
-      function closeModal() {
-        document.getElementById("custom-modal").classList.add("hidden");
-      }
-
-      async function measurePing() {
-        const start = Date.now();
-        try {
-          await fetch("https://www.google.com/favicon.ico", {
-            mode: "no-cors",
-            cache: "no-store",
-          });
-          currentRtt = Date.now() - start;
-        } catch (e) {
-          currentRtt = 200;
-        }
-        document.getElementById("lbl-rtt").innerText = currentRtt + " ms";
-
-        let zone = "GOOD_ZONE";
-        if (currentRtt >= 80 && currentRtt < 180) zone = "MODERATE_ZONE";
-        else if (currentRtt >= 180) zone = "DEAD_ZONE";
-        document.getElementById("lbl-zone").innerText = zone;
-        return { rtt: currentRtt, zone: zone };
-      }
-
-      function toggleTelemetry() {
-        const btn = document.getElementById("main-btn");
-        const roleSelect = document.getElementById("device-role");
-        const projectId = document.getElementById("project-id").value;
-        const role = roleSelect.value;
-
-        if (!isRunning) {
-          myUniqueId =
-            "edge_" + role + "_" + Math.random().toString(16).substr(2, 6);
-          activeSenderId = null;
-
-          client = new Paho.MQTT.Client(
-            "broker.hivemq.com",
-            8884,
-            "/mqtt",
-            myUniqueId,
-          );
-
-          client.onConnectionLost = (responseObject) => {
-            const statusEl = document.getElementById("mqtt-status");
-            if (statusEl) {
-              statusEl.className =
-                "px-3 py-1 rounded-full text-xs font-bold bg-slate-800 text-rose-400 border border-rose-500/30";
-              statusEl.innerText = "Terputus";
-            }
-            log("Koneksi terputus: " + responseObject.errorMessage);
-            stopEverything();
-          };
-
-          client.onMessageArrived = (msg) => {
-            try {
-              const data = JSON.parse(msg.payloadString);
-              if (data.client_id !== myUniqueId && data.status !== "OFFLINE") {
-                activeSenderId = data.client_id;
-              }
-            } catch (e) {}
-          };
-
-          client.connect({
-            useSSL: true,
-            onSuccess: () => {
-              log(`Memeriksa ketersediaan jalur untuk ${role}...`);
-              const topic = `sigheat/${projectId}/edge/${role}/telemetry`;
-              client.subscribe(topic);
-
-              setTimeout(() => {
-                if (activeSenderId !== null) {
-                  showModal(
-                    `Peran ${role} sedang digunakan oleh perangkat lain (${activeSenderId})! Silakan pilih peran lain.`,
-                  );
-                  log(
-                    `GAGAL: Peran ${role} sedang aktif digunakan oleh ${activeSenderId}.`,
-                  );
-                  try {
-                    client.disconnect();
-                  } catch (err) {}
-                  stopEverything();
-                  return;
-                }
-
-                roleSelect.disabled = true;
-
-                const statusEl = document.getElementById("mqtt-status");
-                statusEl.className =
-                  "px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
-                statusEl.innerText = "Terhubung";
-                isRunning = true;
-
-                btn.className =
-                  "w-full py-3.5 rounded-xl bg-rose-500 hover:bg-rose-600 text-white font-bold text-xs tracking-wider uppercase transition-all shadow-lg shadow-rose-500/20 flex items-center justify-center gap-2";
-                btn.innerHTML = `<i data-lucide="square" class="w-4 h-4"></i> Hentikan Telemetri`;
-                lucide.createIcons();
-
-                log(`Berhasil mengamankan dan terhubung sebagai ${role}!`);
-
-                timer = setInterval(async () => {
-                  sequence++;
-                  const metric = await measurePing();
-                  const payload = {
-                    client_id: myUniqueId,
-                    device_id: role,
-                    sequence: sequence,
-                    smoothed_rtt_ms: metric.rtt,
-                    status_zone: metric.zone,
-                    status: "ONLINE",
-                    timestamp: Date.now(),
-                  };
-
-                  const message = new Paho.MQTT.Message(
-                    JSON.stringify(payload),
-                  );
-                  message.destinationName = topic;
-                  client.send(message);
-                  log(`Kirim #${sequence} (${role}) | RTT: ${metric.rtt}ms`);
-                }, 2000);
-              }, 2000);
-            },
-            onFailure: (err) => {
-              log("Gagal konek: " + err.errorMessage);
-              stopEverything();
-            },
-          });
-        } else {
-          if (client && client.isConnected()) {
-            try {
-              const topic = `sigheat/${projectId}/edge/${role}/telemetry`;
-              const offlinePayload = JSON.stringify({
-                client_id: myUniqueId,
-                device_id: role,
-                status: "OFFLINE",
-                timestamp: Date.now(),
-              });
-              const message = new Paho.MQTT.Message(offlinePayload);
-              message.destinationName = topic;
-              client.send(message);
-              client.disconnect();
-            } catch (e) {}
-          }
-          stopEverything();
-          log("Telemetri dihentikan.");
-        }
-      }
-
-      function stopEverything() {
-        clearInterval(timer);
-        timer = null;
-        isRunning = false;
-        activeSenderId = null;
-
-        const roleSelect = document.getElementById("device-role");
-        if (roleSelect) {
-          roleSelect.disabled = false;
-        }
-
-        const btn = document.getElementById("main-btn");
-        if (btn) {
-          btn.className =
-            "w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs tracking-wider uppercase transition-all shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2";
-          btn.innerHTML = `<i data-lucide="send" class="w-4 h-4"></i> Mulai Mengirim Telemetri`;
-          lucide.createIcons();
-        }
-
-        const statusEl = document.getElementById("mqtt-status");
-        if (statusEl) {
-          statusEl.className =
-            "px-3 py-1 rounded-full text-xs font-bold bg-slate-800 text-rose-400 border border-rose-500/30";
-          statusEl.innerText = "Terputus";
-        }
-      }
-    </script>
+      <section class="panel" style="margin-top: 24px">
+        <div class="panel-head">
+          <div>
+            <h2>Aktivitas perangkat</h2>
+            <p>Koneksi, sampel, dan perintah dari dashboard.</p>
+          </div>
+          <button class="btn compact" id="clear-log" type="button">
+            Bersihkan
+          </button>
+        </div>
+        <ol class="log-list" id="activity-log">
+          <li class="muted">Belum ada aktivitas.</li>
+        </ol>
+      </section>
+      <footer class="footer">
+        <span>SigHeat · Kontributor pengukuran</span
+        ><span
+          >Demo tugas: laptop dan kedua HP berada dalam satu jaringan.</span
+        >
+      </footer>
+    </main>
+    <div class="toast" id="toast" role="status" hidden></div>
+    <script src="assets/vendor/paho-mqtt.min.js"></script>
+    <script src="assets/core.js"></script>
+    <script src="assets/edge.js"></script>
+    <script src="assets/app.js"></script>
   </body>
 </html>
