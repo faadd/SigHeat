@@ -123,7 +123,3 @@ Sumber browser dan Termux dapat berada dalam satu proyek, tetapi untuk perbandin
 | `server.py` | Server dashboard lokal opsional |
 
 Dokumentasi: [Protokol dan algoritma](docs/PROTOCOL.md) · [Rubrik/demo](docs/RUBRIC_AND_DEMO.md) · [Validasi](docs/VALIDATION.md) · [Brief PPT](docs/PRESENTATION_BRIEF.md) · [Perubahan](docs/CHANGELOG.md).
-
-Data hardware dan broker kelompok tetap perlu diuji. Catat sensor yang gagal, timeout, serta akurasi lokasi; jangan menggantinya dengan hasil buatan. Unggah kode ke GitHub, masukkan link dalam PPT, dan sertakan video demo sesuai tugas.
-
-Struktur panduan diadaptasi dari **README PocketGuard yang diberikan pengguna**, dengan isi tetap mengikuti ide SigHeat dan PDF tugas. Fitur anti-pencurian, alarm PocketGuard, dan Sensor Playground umum tidak menjadi fitur SigHeat. Keunikan ide terhadap kelompok lain perlu diperiksa pada sheet kelas.
