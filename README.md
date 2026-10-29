@@ -120,7 +120,7 @@ Forwarding   https://abcd-1234.ngrok-free.app -> http://localhost:8083
 Ubah menjadi alamat broker dengan mengganti `https://` menjadi **`wss://`**, menghilangkan port, dan menambahkan path `/mqtt`:
 
 ```text
-wss://abcd-1234.ngrok-free.app/mqtt
+wss://theft-footing-deflected.ngrok-free.dev/mqtt
 ```
 
 Itulah nilai **Broker WSS** untuk dashboard dan kedua HP. Jangan memakai port 8884/8083 pada URL ngrok; ngrok sudah melayani lewat port 443 standar.
@@ -129,7 +129,7 @@ Itulah nilai **Broker WSS** untuk dashboard dan kedua HP. Jangan memakai port 88
 
 | Perangkat | Tempat mengisi | Nilai |
 |---|---|---|
-| Dashboard | Hubungkan → **Broker WSS** | `wss://abcd-1234.ngrok-free.app/mqtt` |
+| Dashboard | Hubungkan → **Broker WSS** | `wss://theft-footing-deflected.ngrok-free.dev/mqtt` |
 | HP A / HP B (browser) | Isian **Broker** di `index.html` | sama |
 | HP A / HP B (Termux) | `MQTT_WSS_URL` di `.env` | sama |
 | Semua | **Project ID** | sama, misalnya `sigheat_kelompok_07_uji1` |
@@ -139,7 +139,7 @@ Contoh `.env` untuk Termux:
 
 ```dotenv
 PROJECT_ID=sigheat_kelompok_07_uji1
-MQTT_WSS_URL=wss://abcd-1234.ngrok-free.app/mqtt
+MQTT_WSS_URL=wss://theft-footing-deflected.ngrok-free.dev/mqtt
 MQTT_USERNAME=
 MQTT_PASSWORD=
 INTERVAL_S=5
@@ -168,7 +168,7 @@ python server.py --port 8000
 Buka **http://localhost:8000/dashboard.html**. Klik **Hubungkan**, lalu isi:
 
 - **Project ID:** nama unik kelompok, misalnya `sigheat_kelompok_07_uji1`.
-- **Broker WSS:** untuk HiveMQ pribadi kelompok, isi alamat ngrok dari bagian 0, misalnya `wss://abcd-1234.ngrok-free.app/mqtt`. Untuk latihan publik dapat memakai `wss://broker.hivemq.com:8884/mqtt`.
+- **Broker WSS:** untuk HiveMQ pribadi kelompok, isi alamat ngrok dari bagian 0, `wss://theft-footing-deflected.ngrok-free.dev/mqtt`. Untuk kondisi server MQTT sedang tidak aktif dapat gunakan tautan publik yaitu `wss://broker.hivemq.com:8884/mqtt`.
 - **Username/password:** hanya jika broker kelompok memerlukannya.
 
 Dashboard **tidak membaca `.env` secara otomatis**. Samakan isian UI dengan kedua HP. Pada broker publik, gunakan lokasi uji nonpribadi; ID proyek adalah pemisah topic, bukan password.
@@ -207,7 +207,7 @@ Isi `.env` pada masing-masing HP:
 
 ```dotenv
 PROJECT_ID=sigheat_kelompok_07
-MQTT_WSS_URL= wss://theft-footing-deflected.ngrok-free.dev/mqtt (Dijalankan secara non-public / lokal oleh device)
+MQTT_WSS_URL= wss://theft-footing-deflected.ngrok-free.dev/mqtt(Non-Public) ATAU wss://broker.hivemq.com:8884/mqtt (Public)
 MQTT_USERNAME=
 MQTT_PASSWORD=
 INTERVAL_S=5
