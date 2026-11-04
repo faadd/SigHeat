@@ -275,4 +275,4 @@ Sumber browser dan Termux dapat berada dalam satu proyek, tetapi untuk perbandin
 | `server.py` | Server dashboard lokal opsional |
 | `conf/config.xml` | Konfigurasi WebSocket listener HiveMQ CE (Docker) |
 
-Dokumentasi: [Protokol dan algoritma](docs/PROTOCOL.md) · [Rubrik/demo](docs/RUBRIC_AND_DEMO.md) · [Validasi](docs/VALIDATION.md) · [Brief PPT](docs/PRESENTATION_BRIEF.md) · [Perubahan](docs/CHANGELOG.md).
+Dokumentasi: [Protokol dan algoritma](docs/PROTOCOL.md) · [Rubrik/demo](docs/RUBRIC_AND_DEMO.md) · [Validasi](docs/VALIDATION.md) · [Perubahan](docs/CHANGELOG.md).
