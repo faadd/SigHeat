@@ -27,6 +27,8 @@
             <span class="nav-counter" id="nav-device-count">0</span></button
           ><button data-view="activity">
             <span class="nav-icon">≡</span>Aktivitas</button
+          ><button data-view="ml">
+            <span class="nav-icon" aria-hidden="true">↗</span>Prediksi ML</button
           ><button data-view="guide">
             <span class="nav-icon">?</span>Panduan</button
           ><a href="index.html"
@@ -327,6 +329,93 @@
             </div>
             <ol class="log-list" id="activity-log"></ol>
           </section>
+          <section class="view" id="view-ml" hidden aria-labelledby="ml-heading">
+            <div class="panel ml-overview">
+              <div class="panel-head">
+                <div>
+                  <h2 id="ml-heading">Prediksi RTT berikutnya</h2>
+                  <p>Regresi Ridge belajar dari urutan pengukuran satu perangkat dan satu sesi.</p>
+                </div>
+                <span class="chip grey" id="ml-provenance">BELUM ADA DATA</span>
+              </div>
+              <div class="ml-body">
+                <div class="ml-controls">
+                  <div class="form-field ml-device-field">
+                    <label for="ml-device">Perangkat untuk model</label>
+                    <select id="ml-device" aria-describedby="ml-data-note">
+                      <option value="">Belum ada perangkat</option>
+                    </select>
+                  </div>
+                  <button class="btn primary" id="ml-train" disabled>Latih &amp; evaluasi</button>
+                  <button class="btn" id="ml-demo">Coba data sintetis</button>
+                  <button class="btn" id="ml-leave-demo" hidden>Kembali ke pengukuran</button>
+                </div>
+                <p class="ml-data-note" id="ml-data-note">Kumpulkan sedikitnya 120 sampel pada interval tetap. Pada interval 5 detik, ini sekitar 10 menit.</p>
+                <p class="small muted">Membuka demo sintetis memutus MQTT dan membersihkan data sesi. Unduh pengukuran yang ingin disimpan sebelum beralih.</p>
+                <p class="ml-status" id="ml-status" role="status" aria-live="polite">Model belum dilatih.</p>
+                <div class="ml-stat-grid">
+                  <div class="ml-stat">
+                    <span id="ml-observed-label">RTT terakhir terukur</span>
+                    <strong id="ml-observed">–</strong>
+                    <small id="ml-observed-note">Probe aplikasi MQTT</small>
+                  </div>
+                  <div class="ml-stat ml-prediction">
+                    <span>Prediksi yang dipilih</span>
+                    <strong id="ml-prediction">–</strong>
+                    <small id="ml-prediction-note">Menunggu model dan data terbaru</small>
+                  </div>
+                  <div class="ml-stat">
+                    <span>Prediksi model Ridge</span>
+                    <strong id="ml-ridge">–</strong>
+                    <small id="ml-ridge-note">Dibandingkan dengan dua baseline</small>
+                  </div>
+                </div>
+                <p id="ml-warning" class="ml-warning" hidden></p>
+                <p class="small muted ml-caveat">Prediksi berlaku untuk telemetri berikutnya pada interval yang sama, bukan waktu kedatangan yang pasti. RTT aplikasi tidak sama dengan kekuatan sinyal radio. Warna peta tetap memakai pengukuran dan ambang proyek.</p>
+              </div>
+            </div>
+            <div class="panel ml-evaluation">
+              <div class="panel-head">
+                <div>
+                  <h2>Apakah ML lebih baik?</h2>
+                  <p>Galat dari pelatihan terakhir, dalam milidetik; lebih kecil lebih baik. Data uji tidak dipakai untuk memilih model.</p>
+                </div>
+              </div>
+              <div class="ml-body">
+                <p id="ml-split" class="small muted">Urutan waktu: 60% pelatihan, 20% validasi, 20% pengujian. Enam input RTT dan target berada dalam split yang sama.</p>
+              </div>
+              <div class="table-wrap">
+                <table class="ml-results">
+                  <caption class="sr-only">Perbandingan galat prediksi pada validasi dan pengujian</caption>
+                  <thead><tr><th scope="col">Metode</th><th scope="col">MAE validasi</th><th scope="col">MAE uji</th><th scope="col">RMSE uji</th></tr></thead>
+                  <tbody id="ml-results"><tr><td colspan="4">Belum ada hasil evaluasi.</td></tr></tbody>
+                </table>
+              </div>
+              <div class="ml-body">
+                <p id="ml-selection-note" class="ml-explanation">Ridge dipilih jika MAE validasinya sedikitnya 5% lebih rendah dari baseline terbaik. Jika belum, aplikasi memakai baseline dan tetap menampilkan hasil ML.</p>
+                <div class="ml-downloads">
+                  <button class="btn" id="ml-export-data" disabled>Unduh dataset perangkat (CSV)</button>
+                  <button class="btn" id="ml-export-model" disabled>Unduh model (JSON)</button>
+                  <button class="btn" id="ml-export-report" disabled>Unduh evaluasi (JSON)</button>
+                </div>
+                <p class="small muted">Data dan model berada di memori tab ini. Unduh sebelum memuat ulang halaman. CSV ML menyimpan maksimal 3.000 sampel terbaru per sesi perangkat, tanpa koordinat lokasi.</p>
+              </div>
+            </div>
+            <details class="panel ml-how">
+              <summary>Cara membaca hasil</summary>
+              <div class="ml-body">
+                <ol>
+                  <li>Telemetri dari browser atau Termux divalidasi sebelum masuk dataset.</li>
+                  <li>Enam RTT sebelumnya dan fitur konteks menjadi input. RTT pada sampel berikutnya menjadi target saat latihan.</li>
+                  <li>Ridge mempelajari bobot dari data pelatihan; validasi memilih regularisasi dan metode prediksi.</li>
+                  <li>Pengujian mengukur galat pada bagian akhir data yang belum dipakai untuk pemilihan.</li>
+                </ol>
+                <p><strong>Baseline persistence</strong> memakai RTT terakhir. <strong>Moving average</strong> memakai rerata window. Keduanya pembanding, bukan model ML yang dilatih.</p>
+                <p><strong>Data sintetis</strong> hanya menguji alur dan membantu demonstrasi. Hasilnya tidak membuktikan akurasi pada jaringan kelompok.</p>
+                <p><strong>MAE</strong> adalah rata-rata besar galat. <strong>RMSE</strong> memberi penalti lebih besar untuk galat besar. Model ini tidak memprediksi probabilitas koneksi putus.</p>
+              </div>
+            </details>
+          </section>
           <section class="view" id="view-guide" hidden>
             <div class="guide-layout">
               <article class="panel">
@@ -493,6 +582,8 @@
     <script src="assets/vendor/paho-mqtt.min.js"></script>
     <script src="assets/core.js"></script>
     <script src="assets/edge.js"></script>
+    <script src="assets/ml.js"></script>
+    <script src="assets/ml-ui.js"></script>
     <script src="assets/app.js"></script>
   </body>
 </html>

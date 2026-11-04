@@ -4,6 +4,25 @@
 
 SigHeat mengukur waktu perjalanan pesan aplikasi **HP → broker → HP**, variasi latency, dan keberhasilan probe. Hasilnya bukan kekuatan radio dBm, ping ICMP, atau kecepatan unduh. Lokasi opsional membantu menempatkan pengamatan pada peta.
 
+## Tambahan versi 3.0: prediksi RTT dengan ML
+
+Versi ini menambahkan **regresi Ridge terlatih untuk memperkirakan RTT MQTT pada sampel berikutnya**. Model menggunakan enam RTT terakhir dan konteks sensor, dilatih lokal di browser, lalu dibandingkan dengan persistence dan rata-rata bergerak menggunakan pembagian waktu train/validation/test. Jika ML belum meningkatkan MAE validation minimal 5%, aplikasi memilih baseline dan menyatakan hasil tersebut.
+
+Mulai dengan `python server.py --port 8000`, buka `http://localhost:8000/dashboard.html`, lalu pilih menu **Prediksi ML**. Klik **Coba data sintetis**, kemudian **Latih & evaluasi** untuk demo tanpa broker. Data contoh berlabel sintetis; hasilnya bukan bukti akurasi jaringan nyata. Untuk melatih data kelompok, hubungkan kedua HP seperti panduan di bawah, kumpulkan minimal 120 baris per perangkat/sesi, pilih perangkat, lalu jalankan pelatihan.
+
+Data dan model berada dalam memori tab; unduh sebelum menutup atau memuat ulang halaman. Model berlaku pada perangkat, sesi boot, sumber, broker, interval, dan mode sensor yang sama. Dashboard menyediakan ekspor dataset CSV, model JSON, dan evaluasi JSON; impor model melalui UI belum tersedia. Dua opsi edge dan fungsi MQTT asli tetap digunakan.
+
+| Panduan | Isi |
+|---|---|
+| [Pembahasan AI/ML](docs/AI_ML.md) | Perbandingan ketiga ide, alasan pilihan, cara belajar, fitur, evaluasi, batasan |
+| [Pembahasan PDF](docs/Pembahasan_SigHeat_AI.pdf) | Penjelasan siap dibaca, alur sistem, langkah demo, serta hasil contoh sintetis |
+| [Demo dan pengujian](docs/AI_DEMO_DAN_PENGUJIAN.md) | Langkah live/demo, CLI, tes, protokol lapangan dan tabel hasil kelompok |
+| [Dataset card](docs/DATASET_CARD.md) | Skema, asal data, nilai hilang, pemisahan, reproduksibilitas dan privasi |
+| [Bahan presentasi](docs/AI_PRESENTASI.md) | Susunan slide, penjelasan lisan, pertanyaan dan pembagian kerja |
+| [Pemeriksaan paket](docs/RELEASE_VALIDATION.md) | Hasil tes, batas verifikasi, dan asal kode |
+
+Pelatihan contoh melalui Node.js: `npm run ml:demo`, kemudian `node scripts/train-ml.cjs --input data/demo-synthetic.csv --output models/demo --allow-synthetic`. Hasil contoh tersedia dalam `models/demo/model.json` dan `models/demo/report.json`. Kode awal berasal dari ZIP yang diberikan; paket ini belum dipublikasikan ke GitHub kelompok.
+
 ## Anggota Kelompok
 
 1. [Addia Fa'adihilah Mahendra Nugraha] — [24060125120006]

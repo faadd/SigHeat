@@ -1,9 +1,15 @@
 {
   "name": "sigheat",
-  "version": "2.1.0",
+  "version": "3.0.0",
   "private": true,
-  "description": "SigHeat MQTT sensor monitoring with Browser and Termux Android edge options",
+  "description": "SigHeat MQTT monitoring with supervised Ridge forecasting and chronological evaluation",
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
-    "test": "node --test tests/*.cjs"
+    "test": "node --test tests/*.cjs",
+    "test:python": "python -m unittest discover -s tests -p test_*.py",
+    "ml:demo": "node scripts/generate-ml-demo.cjs",
+    "ml:train": "node scripts/train-ml.cjs"
   }
 }

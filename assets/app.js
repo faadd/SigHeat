@@ -169,6 +169,7 @@
     state.pending.clear();
   }
   function clearData() {
+    window.SigHeatMLPanel?.reset();
     state.devices.clear();
     state.statuses.clear();
     state.points = [];
@@ -195,6 +196,14 @@
     renderDetail();
     renderMap();
     renderInsight();
+    const active = state.devices.get(state.selected);
+    window.SigHeatMLPanel?.updateSelection({
+      selected: state.selected,
+      connected: state.connected,
+      demo: state.demo,
+      stale: !active || stale(active),
+      staleDeviceIds: [...state.devices.values()].filter((p) => stale(p)).map((p) => p.device_id),
+    });
   }
   function renderMode() {
     if ($("source-filter")) {
@@ -555,6 +564,11 @@
         "Perangkat",
         "Kelola perangkat pengukuran.",
         "Browser dan Termux + Python mengirim data serta menerima perintah melalui MQTT.",
+      ],
+      ml: [
+        "Prediksi ML",
+        "Antisipasi RTT berikutnya.",
+        "Latih model dari data perangkat, lalu bandingkan dengan prediksi sederhana.",
       ],
       activity: [
         "Aktivitas",
@@ -962,6 +976,7 @@
         fresh = !state.devices.has(p.device_id);
       state.devices.set(p.device_id, p);
       state.points.push(p);
+      window.SigHeatMLPanel?.ingest({ ...p, project_id: state.project });
       state.points = state.points.slice(-1000);
       if (!state.selected) state.selected = p.device_id;
       if (fresh)
@@ -1167,6 +1182,12 @@
       "mode",
       "project_id",
       "device_id",
+      "boot_id",
+      "sequence",
+      "interval_s",
+      "schema_version",
+      "received_at_ms",
+      "location_at_ms",
       "source",
       "source_label",
       "broker_endpoint",
@@ -1471,6 +1492,16 @@
     return;
   }
   if (dashboard) {
+    window.SigHeatMLPanel?.configure({
+      onDemo() {
+        disconnect(false);
+        clearData();
+        state.demo = false;
+        state.project = "";
+        state.broker = "";
+        render();
+      },
+    });
     document.querySelectorAll("[data-open-connection]").forEach((b) =>
       b.addEventListener("click", () => {
         text("connection-error", "");

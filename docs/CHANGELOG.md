@@ -1,4 +1,14 @@
-# Perubahan SigHeat: dua opsi edge
+# Perubahan SigHeat
+
+## Versi 3.0 - 4 November 2026
+
+- Menambahkan regresi Ridge untuk RTT berikutnya, pelatihan lokal, pemisahan kronologis, dan evaluasi terhadap dua baseline.
+- Menambahkan menu Prediksi ML dengan data terpisah per perangkat/sesi, demo sintetis, serta ekspor dataset/model/evaluasi.
+- Melengkapi kolom identitas sesi pada ekspor CSV asli, sehingga urutan pengamatan dapat diperiksa.
+- Menyediakan CLI, 480 baris data sintetis, model contoh, dan 24 tes baru untuk engine serta panel ML.
+- Menambahkan pembahasan AI, PDF, panduan percobaan, dataset card, dan bahan presentasi.
+
+## Riwayat versi 2.1: dua opsi edge
 
 Struktur README kini mengikuti contoh PocketGuard yang dilampirkan: pengantar, anggota kelompok, cara kerja, laptop, pilihan Opsi A/Opsi B, uji sistem, dan peta kode. Fungsi tetap SigHeat untuk pengamatan kualitas koneksi.
 
