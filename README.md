@@ -4,6 +4,14 @@
 
 SigHeat mengukur waktu perjalanan pesan aplikasi **HP → broker → HP**, variasi latency, dan keberhasilan probe. Hasilnya bukan kekuatan radio dBm, ping ICMP, atau kecepatan unduh. Lokasi opsional membantu menempatkan pengamatan pada peta.
 
+## Versi 4.1: Mode Heatmap
+
+Pilihan **Mode Heatmap** berada di samping **Peta jalan**. Area warnanya mengikuti sebaran pengamatan: **ungu = beban relatif rendah**, **hijau kebiruan = sedang**, dan **kuning = tinggi**. Area tanpa warna belum didukung data; titik abu-abu tidak ikut membentuk warna. Legenda lengkap tampil di bawah peta.
+
+Heatmap memakai kategori K-Means aktif yang dihaluskan dengan radius 35 m. Perhitungan berjalan lokal memakai Canvas dan Leaflet, **tanpa API key atau layanan berbayar**. Pengamatan berulang di lokasi yang sama tidak dijumlahkan menjadi warna yang makin panas. Ini penghalusan pengamatan RTT, bukan peta jangkauan Wi-Fi atau prediksi pada tempat yang belum diukur.
+
+Untuk mencoba, aktifkan **Contoh lokal**, lalu tekan **Mode Heatmap**. Untuk data nyata, aktifkan berbagi lokasi pada HP. Peta jalan OpenStreetMap memerlukan jaringan; jika tile gagal dimuat, lapisan heatmap tetap dapat digunakan pada latar polos. Lihat [panduan Heatmap](docs/HEATMAP.md) untuk arti warna, syarat data, batas akurasi, dan cara kerja.
+
 ## Versi 4.0: model bawaan dan pembelajaran otomatis
 
 Versi ini menggabungkan **Ridge Regression untuk prediksi RTT berikutnya** dan **K-Means untuk kategori beban koneksi relatif**. Kategori dashboard memakai centroid yang dipelajari, menggantikan batas RTT 150/500 ms. Model awal dimuat otomatis; pengguna tidak perlu membuka tab ML atau menekan tombol training.
@@ -16,6 +24,7 @@ Model dan riwayat fitur disimpan secara terbatas pada browser/origin yang sama, 
 
 | Panduan | Isi |
 |---|---|
+| [Mode Heatmap](docs/HEATMAP.md) | Arti warna, pemetaan pengamatan, penggunaan gratis, dan batas interpretasi |
 | [Pembahasan AI/ML](docs/AI_ML.md) | Ridge, K-Means, model awal, adaptasi otomatis, evaluasi, dan batasan |
 | [Pembahasan PDF](docs/Pembahasan_SigHeat_AI_v4.pdf) | Penjelasan siap dibaca dan alur demonstrasi |
 | [Demo dan pengujian](docs/AI_DEMO_DAN_PENGUJIAN.md) | Demo/live, penyimpanan, backup, eksperimen lapangan |

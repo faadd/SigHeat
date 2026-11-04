@@ -165,11 +165,12 @@
                   </button>
                 </div>
                 <div class="map-tools">
-                  <div class="segmented" aria-label="Tampilan peta">
-                    <button class="active" id="map-points" type="button">
+                  <div class="segmented" role="group" aria-label="Tampilan peta">
+                    <button class="active" id="map-points" type="button" aria-pressed="true">
                       Titik</button
-                    ><button id="map-grid" type="button">Grid 25 m</button
-                    ><button id="map-roads" type="button">Peta jalan</button>
+                    ><button id="map-grid" type="button" aria-pressed="false">Grid 25 m</button
+                    ><button id="map-roads" type="button" aria-pressed="false">Peta jalan</button>
+                    <button id="map-heatmap" type="button" aria-pressed="false">Mode Heatmap</button>
                   </div>
                   <span id="map-view-note" class="small muted"
                     >Plot koordinat · tanpa peta dasar</span
@@ -185,7 +186,7 @@
                     Belum ada pengukuran
                   </div>
                 </div>
-                <div class="map-legend">
+                <div class="map-legend" id="map-standard-legend">
                   <span class="legend-item"
                     ><i class="dot"></i>Beban relatif rendah</span
                   ><span class="legend-item"
@@ -195,6 +196,19 @@
                   ><span class="map-fineprint"
                     ><span class="legend-item"><i class="dot unknown"></i>Tidak terklasifikasi</span> Kelompok dipelajari dari data; bukan standar jaringan.</span
                   >
+                </div>
+                <div class="heatmap-legend" id="heatmap-legend" hidden aria-labelledby="heatmap-legend-title">
+                  <div class="heatmap-legend-head"><strong id="heatmap-legend-title">Beban koneksi relatif · hasil ML</strong><span>Radius penghalusan 35 m</span></div>
+                  <div class="heatmap-ramp" aria-hidden="true"></div>
+                  <div class="heatmap-keys">
+                    <span><i class="heat-key heat-low" aria-hidden="true"></i><b>Ungu</b> · rendah</span>
+                    <span><i class="heat-key heat-mid" aria-hidden="true"></i><b>Hijau kebiruan</b> · sedang</span>
+                    <span><i class="heat-key heat-high" aria-hidden="true"></i><b>Kuning</b> · tinggi</span>
+                  </div>
+                  <p>Warna peralihan merangkum kelompok ML di sekitar titik. Area tanpa warna belum didukung pengamatan; bukan berarti koneksinya baik.</p>
+                  <p><i class="heat-key heat-unknown" aria-hidden="true"></i> Titik abu-abu: timeout, belum terklasifikasi, atau lokasi terlalu tidak pasti. Tidak ikut membentuk warna area.</p>
+                  <p id="heatmap-status" class="heatmap-status" role="status" aria-live="polite">Aktifkan berbagi lokasi pada HP untuk melihat heatmap.</p>
+                  <p class="heatmap-note">Ini penghalusan pengamatan RTT, bukan jangkauan Wi-Fi atau prediksi di lokasi yang belum diukur. Tidak memerlukan API key atau layanan berbayar.</p>
                 </div>
               </section>
               <aside class="panel detail-panel">
@@ -539,6 +553,8 @@
     <script src="assets/learning.js"></script>
     <script src="assets/learning-seed.js"></script>
     <script src="assets/ml-ui.js"></script>
+    <script src="assets/heatmap.js"></script>
+    <script src="assets/heatmap-layer.js"></script>
     <script src="assets/app.js"></script>
   </body>
 </html>

@@ -78,6 +78,7 @@ class PublicServerTests(unittest.TestCase):
             self.assertEqual(response.read(), b'')
             self.assertIn("script-src 'self'", response.headers['Content-Security-Policy'])
             self.assertIn('wss:', response.headers['Content-Security-Policy'])
+            self.assertIn('https://tile.openstreetmap.org', response.headers['Content-Security-Policy'])
 
     def test_mutating_methods_have_no_endpoint(self):
         request = urllib.request.Request(self.base + '/index.html', method='POST', data=b'overwrite')

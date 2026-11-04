@@ -20,6 +20,10 @@
     pending: new Map(),
     map: null,
     markers: null,
+    heatmapLayer: null,
+    heatmapInfo: null,
+    heatmapRender: null,
+    tilesFailed: false,
     mapMode: "points",
     mapFitted: false,
     edge: null,
@@ -207,7 +211,7 @@
         selected.source !== state.sourceFilter)
     )
       state.selected = visibleDevices()[0]?.device_id || null;
-    if (mixedContexts() && state.mapMode === "grid") state.mapMode = "points";
+    if (mixedContexts() && ["grid", "heatmap"].includes(state.mapMode)) changeMapMode("points");
     renderMode();
     renderMetrics();
     renderDevices();
@@ -239,9 +243,9 @@
       state.demo
         ? "Contoh lokal tidak berasal dari Browser atau Termux."
         : mixedSources()
-          ? "Rerata dan grid gabungan dinonaktifkan. Pilih satu sumber untuk membandingkan hasil."
+          ? "Rerata, grid, dan heatmap gabungan dinonaktifkan. Pilih satu sumber untuk membandingkan hasil."
           : mixedContexts()
-            ? "Beberapa interval atau konteks model ditampilkan. Kelompok relatif tidak langsung sebanding; grid gabungan dinonaktifkan."
+            ? "Beberapa interval atau konteks model ditampilkan. Kelompok relatif tidak langsung sebanding; grid dan heatmap gabungan dinonaktifkan."
           : "Bandingkan perangkat dengan opsi, broker, dan kondisi yang sama.",
     );
     if ($("map-grid")) {
@@ -249,6 +253,12 @@
       $("map-grid").title = mixedContexts()
         ? "Grid memerlukan satu konteks sumber, broker, proyek, dan interval."
         : "Grid kelas ML mayoritas pada satu konteks model.";
+    }
+    if ($("map-heatmap")) {
+      $("map-heatmap").disabled = mixedContexts() || !window.SigHeatHeatmap || !window.SigHeatHeatLayer;
+      $("map-heatmap").title = mixedContexts()
+        ? "Heatmap memerlukan satu konteks sumber, broker, proyek, dan interval."
+        : "Area pengamatan yang dihaluskan lokal; tanpa API key atau layanan berbayar.";
     }
     text(
       "mode-chip",
@@ -601,71 +611,110 @@
     text("page-subtitle", labels[view][2]);
     if (view === "map") setTimeout(() => state.map?.invalidateSize(), 50);
   }
+  function heatmapStatus() {
+    const info = state.heatmapInfo, drawn = state.heatmapRender;
+    if (state.mapMode !== "heatmap") return;
+    const messages = [];
+    if (state.tilesFailed) messages.push("Peta jalan tidak tersedia; heatmap tetap berfungsi pada latar koordinat.");
+    if (!info?.binCount) messages.push(info?.reason || "Belum ada data berlokasi. Aktifkan berbagi lokasi pada HP atau jalankan Contoh lokal.");
+    else messages.push(`${info.knownCount} pengamatan diringkas menjadi ${info.binCount} lokasi ±2 m; radius penghalusan 35 m.`);
+    if (info?.unknownCount) messages.push(`${info.unknownCount} pengamatan belum terklasifikasi/timeout tidak diwarnai.`);
+    if (info?.uncertainCount) messages.push(`${info.uncertainCount} pengamatan dengan ketidakpastian lokasi >35 m tidak diwarnai.`);
+    if (info?.unknownAccuracyCount) messages.push(`Akurasi GPS belum diketahui pada ${info.unknownAccuracyCount} pengamatan.`);
+    if (drawn?.error) messages.push("Heatmap belum dapat digambar: " + drawn.error);
+    else if (drawn?.zoomTooWide && info?.binCount) messages.push("Perbesar peta untuk melihat area 35 m.");
+    else if (drawn?.coveredCells === 0 && info?.binCount) messages.push("Area berwarna di luar tampilan ini; pilih Semua titik.");
+    const provenance = new Set(visiblePoints().map((p) => p.ml_classification?.provenance));
+    if (state.demo) messages.push("CONTOH SINTETIS: bukan pengukuran jaringan nyata.");
+    else if (provenance.has("synthetic")) messages.push("Kategori masih memakai model awal sintetis; belum tervalidasi lapangan.");
+    text("heatmap-status", messages.join(" "));
+  }
   function initRoadMap() {
     if (!window.L) {
       state.mapMode = "points";
-      toast(
-        "Pustaka peta belum tersedia. Plot koordinat tetap dapat digunakan.",
-      );
+      toast("Pustaka peta belum tersedia. Plot koordinat tetap dapat digunakan.");
       return;
     }
     $("signal-map").replaceChildren();
-    state.map = L.map("signal-map", { scrollWheelZoom: false }).setView(
-      [-7.05, 110.44],
-      15,
-    );
-    state.markers = L.layerGroup().addTo(state.map);
+    const map = state.map = L.map("signal-map", { scrollWheelZoom: false, maxZoom: 19 }).setView([-7.05, 110.44], 15);
+    state.markers = L.layerGroup().addTo(map);
+    state.tilesFailed = false;
     let errors = 0;
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    const tiles = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 19,
-      attribution:
-        '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a>',
-    })
-      .addTo(state.map)
-      .on("tileerror", () => {
-        if (++errors >= 3 && state.map) {
-          changeMapMode("points");
-          toast("Peta dasar gagal dimuat. Plot koordinat tetap tersedia.");
-        }
-      });
+      referrerPolicy: "strict-origin-when-cross-origin",
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors',
+    }).addTo(map).on("tileerror", () => {
+      if (++errors < 3 || state.map !== map || state.tilesFailed) return;
+      state.tilesFailed = true;
+      if (state.mapMode === "heatmap") {
+        map.removeLayer(tiles);
+        heatmapStatus();
+        text("map-view-note", "Heatmap lokal · peta jalan tidak tersedia");
+      } else {
+        changeMapMode("points");
+        toast("Peta dasar gagal dimuat. Plot koordinat tetap tersedia.");
+      }
+    });
   }
   function changeMapMode(mode) {
-    if (mode === "grid" && mixedContexts()) return;
-    if (state.map) {
-      state.map.remove();
-      state.map = null;
+    if (!["points", "grid", "roads", "heatmap"].includes(mode)) return;
+    if (["grid", "heatmap"].includes(mode) && mixedContexts()) return;
+    if (mode === "heatmap" && (!window.SigHeatHeatmap || !window.SigHeatHeatLayer)) {
+      toast("Aset heatmap belum tersedia. Salin folder assets dari paket lengkap."); return;
     }
+    if (state.map) state.map.remove();
+    state.map = null;
+    state.markers = null;
+    state.heatmapLayer = null;
+    state.heatmapInfo = null;
+    state.heatmapRender = null;
+    state.tilesFailed = false;
     state.mapMode = mode;
     state.mapFitted = false;
-    if (mode === "roads") initRoadMap();
+    if (mode === "roads" || mode === "heatmap") initRoadMap();
     renderMap();
   }
   function renderMap() {
     refreshClassifications();
     const root = $("signal-map");
     if (!root) return;
-    ["points", "grid", "roads"].forEach((mode) =>
-      $("map-" + mode)?.classList.toggle("active", state.mapMode === mode),
-    );
-    text(
-      "map-view-note",
-      state.mapMode === "grid"
-        ? "Kelas ML mayoritas per sel ±25 m · seri ditandai abu-abu"
-        : state.mapMode === "roads"
-          ? "Peta OSM · pilih Titik jika peta gagal"
-          : "Plot koordinat · tanpa peta dasar",
-    );
+    const heat = state.mapMode === "heatmap";
+    ["points", "grid", "roads", "heatmap"].forEach((mode) => {
+      $("map-" + mode)?.classList.toggle("active", state.mapMode === mode);
+      $("map-" + mode)?.setAttribute("aria-pressed", String(state.mapMode === mode));
+    });
+    root.classList.toggle("heatmap-map", heat);
+    if ($("map-standard-legend")) $("map-standard-legend").hidden = heat;
+    if ($("heatmap-legend")) $("heatmap-legend").hidden = !heat;
+    text("map-view-note", heat
+      ? state.tilesFailed ? "Heatmap lokal · peta jalan tidak tersedia" : "Area beban relatif · penghalusan 35 m"
+      : state.mapMode === "grid" ? "Kelas ML mayoritas per sel ±25 m · seri ditandai abu-abu"
+      : state.mapMode === "roads" ? "Peta OSM · pilih Titik jika peta gagal"
+      : "Plot koordinat · tanpa peta dasar");
     const points = visiblePoints().filter(
       (p) => finite(p.latitude) && finite(p.longitude),
     );
-    if (state.map && state.mapMode === "roads") {
+    if (state.map && ["roads", "heatmap"].includes(state.mapMode)) {
+      if (heat) {
+        state.heatmapInfo = window.SigHeatHeatmap.prepareSamples(points, { classify: learnedClassification, scope: qualityContext });
+        state.heatmapRender = null;
+        if (!state.heatmapLayer) state.heatmapLayer = window.SigHeatHeatLayer.create(L, {
+          onRender(result) { state.heatmapRender = result; heatmapStatus(); },
+        }).addTo(state.map);
+        state.heatmapLayer.setSamples(state.heatmapInfo.samples);
+        heatmapStatus();
+      }
       state.markers.clearLayers();
       points.forEach((p) => {
+        const locationUncertain = heat && finite(p.accuracy_m) && p.accuracy_m > 35;
+        const heatValue = window.SigHeatHeatmap?.QUALITY_VALUES[p.quality];
+        const color = heat ? locationUncertain || !finite(heatValue) ? colors.unknown : window.SigHeatHeatmap.hexAt(heatValue) : colors[p.quality];
         const marker = L.circleMarker([p.latitude, p.longitude], {
-          radius: state.selected === p.device_id ? 7 : 5,
+          radius: heat ? (state.selected === p.device_id ? 4 : 2.5) : (state.selected === p.device_id ? 7 : 5),
           color: "#fff",
           weight: 2,
-          fillColor: colors[p.quality],
+          fillColor: color,
           fillOpacity: stale(p) ? 0.4 : 0.9,
         }).addTo(state.markers);
         const popup = el("div");
@@ -676,6 +725,7 @@
           el("div", "Model " + (p.ml_classification?.model_id || "belum tersedia")),
           el("div", p.latitude.toFixed(5) + ", " + p.longitude.toFixed(5)),
         );
+        if (heat) popup.append(el("div", locationUncertain ? "Tidak membentuk heatmap: ketidakpastian lokasi >35 m." : "Titik pengamatan; warna area di sekitarnya adalah hasil penghalusan."));
         marker.bindPopup(popup).on("click", () => selectDevice(p.device_id));
       });
       if (points.length && !state.mapFitted) {
@@ -1552,7 +1602,7 @@
     $("set-interval").addEventListener("click", () =>
       sendCommand("set_interval", Number($("interval-select").value)),
     );
-    ["points", "grid", "roads"].forEach((mode) =>
+    ["points", "grid", "roads", "heatmap"].forEach((mode) =>
       $("map-" + mode).addEventListener("click", () => changeMapMode(mode)),
     );
     $("fit-map").addEventListener("click", () => {

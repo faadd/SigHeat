@@ -1,5 +1,15 @@
 # Perubahan SigHeat
 
+## Versi 4.1 - 4 November 2026
+
+- Menambahkan **Mode Heatmap** tepat di samping **Peta jalan**, dengan area pengamatan tidak beraturan dan legenda warna khusus.
+- Menghaluskan kelompok K-Means aktif menggunakan kernel ternormalisasi dengan radius 35 m. Pengamatan dalam sel sekitar 2 m diringkas sehingga warna tidak merepresentasikan kepadatan sampel.
+- Menampilkan ungu untuk beban relatif rendah, hijau kebiruan untuk sedang, kuning untuk tinggi, dan transparansi pada area tanpa dukungan data. Timeout, kategori tidak diketahui, dan lokasi dengan akurasi diketahui >35 m tidak menyumbang warna.
+- Menjaga pemisahan konteks dan mode demo; perubahan classifier aktif ikut memperbarui heatmap. Prediksi RTT tetap terpisah dari permukaan pengamatan.
+- Menggunakan Canvas dan Leaflet lokal tanpa API key atau layanan heatmap berbayar. Kegagalan tile peta jalan tidak menghapus lapisan heatmap.
+- Memperbarui URL tile OpenStreetMap, atribusi, referrer policy, dan izin hostname pada server lokal.
+- Menambahkan tes engine/adapter/integrasi dan `HEATMAP.md`. Hasil pengujian aktual tetap dicatat di `RELEASE_VALIDATION.md`.
+
 ## Versi 4.0 - 4 November 2026
 
 - Memindahkan prediksi RTT ke halaman peta; menghapus tab Prediksi ML dan tombol training pengguna.

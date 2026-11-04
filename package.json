@@ -1,8 +1,8 @@
 {
   "name": "sigheat",
-  "version": "4.0.0",
+  "version": "4.1.0",
   "private": true,
-  "description": "SigHeat MQTT monitoring with automatic persistent Ridge forecasting and learned K-Means connection profiles",
+  "description": "SigHeat MQTT monitoring with automatic persistent learning and a free local geographic heatmap",
   "engines": {
     "node": ">=18"
   },

@@ -1,4 +1,4 @@
-# Pemeriksaan paket SigHeat 4.0
+# Pemeriksaan paket SigHeat 4.1
 
 Tanggal: 4 November 2026.
 
@@ -8,11 +8,19 @@ Paket dibuat dari `SigHeat-main (1)(1).zip` yang dilampirkan pengguna dan pengem
 
 Versi 4 menghapus tab training, memuat parameter model awal secara otomatis, menampilkan prediksi di halaman peta, mengganti kategori threshold dashboard dengan K-Means, serta menyimpan model dan riwayat untuk pembelajaran berkala. Kandidat dinilai pada pengukuran baru sebelum dipakai. Cadangan JSON dan pengemasan model kelompok tersedia. Fungsi dua HP, MQTT, command/ACK, dan pengolahan sensor asli dipertahankan.
 
+## Tambahan versi 4.1: Mode Heatmap
+
+Mode Heatmap berada tepat setelah Peta jalan dan memakai Canvas lokal di atas Leaflet. Warna dibentuk dari kategori ML aktif, dihaluskan dalam radius 35 m, dengan legenda yang sesuai. Tidak ada API key atau dependensi layanan heatmap berbayar. Titik dengan kategori tidak diketahui, timeout, atau akurasi lokasi lebih buruk dari 35 m tidak membentuk permukaan warna. Sumber/konteks berbeda tidak dicampur.
+
+Dua puluh satu tes baru memeriksa engine dan integrasi heatmap, termasuk normalisasi, area transparan, data berulang, warna aktual piksel, pembaruan model, pergantian mode, lifecycle Canvas, peta dasar gagal, dan batas memori/kerja raster. Raster sintetis benar-benar dirender dan diperiksa; luminansi lima warna berurutan meningkat, dan simulasi deuteranopia diperiksa sebagai pemeriksaan tambahan. Ini bukan sertifikasi aksesibilitas atau screenshot browser.
+
+Batas radius dan bin berlaku sebagai pendekatan lokal di peta Web Mercator. Permukaan bukan cakupan radio dan tidak mengisi seluruh wilayah yang belum diukur. Panduan baru ada di `HEATMAP.md`. PDF `Pembahasan_SigHeat_AI_v4.pdf` tetap menjelaskan dasar AI versi 4.0; hasil tes versi 4.1 yang terbaru ada pada dokumen ini.
+
 ## Bukti pengujian
 
 | Pemeriksaan | Hasil |
 |---|---|
-| `node --test tests/*.cjs` | 99 tes lulus, 0 gagal |
+| `node --test tests/*.cjs` | 120 tes lulus, 0 gagal |
 | `python -m unittest discover -s tests -p 'test_*.py'` | 26 dijalankan: 25 lulus, 1 dilewati |
 | Tes Python yang dilewati | Pemeriksaan konteks TLS klien Paho nyata; dependensi Paho MQTT belum tersedia |
 | Sintaks dan aset | Seluruh JS aplikasi/script lulus `node --check`; referensi aset HTML tersedia |
@@ -22,7 +30,7 @@ Versi 4 menghapus tab training, memuat parameter model awal secara otomatis, men
 | Pemulihan cadangan | Perubahan parameter tanpa ID sesuai, model lintas konteks, serta model Ridge yang memakai masa depan cache ditolak |
 | Isolasi simulasi | Data sintetis tidak mengubah atau mengusir pembelajaran pengukuran nyata |
 | CLI | Latihan `--context` mendukung beberapa boot; penjagaan data sintetis dan mode lama diperiksa |
-| PDF dan ZIP | PDF diperiksa melalui render; CRC ZIP dan hash isi diperiksa saat pengemasan |
+| Raster dan ZIP | Raster heatmap serta palet diperiksa melalui render; CRC ZIP dan hash isi diperiksa saat pengemasan |
 
 Tes UI memakai DOM tiruan, dengan engine pembelajaran sebenarnya untuk skenario integrasi tertentu. Ini memeriksa perilaku aplikasi, bukan tampilan browser fisik. Satu tes Python yang dilewati bukan bukti TLS gagal; pasang `requirements.txt` untuk menjalankannya pada lingkungan yang sesuai.
 
