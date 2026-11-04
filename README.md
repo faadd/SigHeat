@@ -18,7 +18,6 @@ Data dan model berada dalam memori tab; unduh sebelum menutup atau memuat ulang 
 | [Pembahasan PDF](docs/Pembahasan_SigHeat_AI.pdf) | Penjelasan siap dibaca, alur sistem, langkah demo, serta hasil contoh sintetis |
 | [Demo dan pengujian](docs/AI_DEMO_DAN_PENGUJIAN.md) | Langkah live/demo, CLI, tes, protokol lapangan dan tabel hasil kelompok |
 | [Dataset card](docs/DATASET_CARD.md) | Skema, asal data, nilai hilang, pemisahan, reproduksibilitas dan privasi |
-| [Bahan presentasi](docs/AI_PRESENTASI.md) | Susunan slide, penjelasan lisan, pertanyaan dan pembagian kerja |
 | [Pemeriksaan paket](docs/RELEASE_VALIDATION.md) | Hasil tes, batas verifikasi, dan asal kode |
 
 Pelatihan contoh melalui Node.js: `npm run ml:demo`, kemudian `node scripts/train-ml.cjs --input data/demo-synthetic.csv --output models/demo --allow-synthetic`. Hasil contoh tersedia dalam `models/demo/model.json` dan `models/demo/report.json`. Kode awal berasal dari ZIP yang diberikan; paket ini belum dipublikasikan ke GitHub kelompok.
