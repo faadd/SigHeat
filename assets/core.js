@@ -273,7 +273,7 @@
       (row) => row && (source === "all" || row.source === source),
     );
   }
-  function aggregateGrid(rows, cellMeters = 25) {
+  function aggregateGrid(rows, cellMeters = 25, options = {}) {
     if (!finite(cellMeters, 10, 10000) || !Array.isArray(rows)) return [];
     const buckets = new Map();
     const origins = new Map();
@@ -285,7 +285,9 @@
         !endpoint(row.broker_endpoint)
       )
         continue;
-      const scope = `${row.source}|${row.broker_endpoint}`;
+      const scope = typeof options.scope === "function"
+        ? options.scope(row)
+        : `${row.source}|${row.broker_endpoint}`;
       if (!origins.has(scope)) origins.set(scope, row.latitude);
       const y = row.latitude * 111320;
       const x =
@@ -311,10 +313,20 @@
           total: 0,
           source: row.source,
           broker_endpoint: row.broker_endpoint,
+          quality_counts: { good: 0, fair: 0, poor: 0, unknown: 0 },
+          quality_model_ids: new Set(),
+          quality_context: scope,
         };
         buckets.set(key, bucket);
       }
       bucket.count++;
+      if (typeof options.classify === "function") {
+        const result = options.classify(row);
+        const key = Object.prototype.hasOwnProperty.call(bucket.quality_counts, result?.quality)
+          ? result.quality : "unknown";
+        bucket.quality_counts[key]++;
+        if (typeof result?.model_id === "string") bucket.quality_model_ids.add(result.model_id);
+      }
       if (row.probe_ok && finite(row.latency_ms, 0, 60000)) {
         bucket.success++;
         bucket.total += row.latency_ms;
@@ -323,6 +335,8 @@
     return Array.from(buckets.values(), (b) => {
       const mean = b.success ? b.total / b.success : null;
       const success = (b.success / b.count) * 100;
+      const ranking = Object.entries(b.quality_counts).sort((a, b) => b[1] - a[1]);
+      const learnedQuality = ranking[0][1] > ranking[1][1] ? ranking[0][0] : "unknown";
       return {
         latitude: b.latitude,
         longitude: b.longitude,
@@ -330,7 +344,14 @@
         count: b.count,
         latency_mean_ms: mean,
         success_pct: success,
-        quality: mean == null ? "poor" : quality(mean, success),
+        quality: typeof options.classify === "function"
+          ? learnedQuality
+          : mean == null ? "poor" : quality(mean, success),
+        ...(typeof options.classify === "function" ? {
+          quality_counts: b.quality_counts,
+          quality_model_ids: Array.from(b.quality_model_ids),
+          quality_context: b.quality_context,
+        } : {}),
         source: b.source,
         broker_endpoint: b.broker_endpoint,
       };

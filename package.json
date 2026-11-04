@@ -1,8 +1,8 @@
 {
   "name": "sigheat",
-  "version": "3.0.0",
+  "version": "4.0.0",
   "private": true,
-  "description": "SigHeat MQTT monitoring with supervised Ridge forecasting and chronological evaluation",
+  "description": "SigHeat MQTT monitoring with automatic persistent Ridge forecasting and learned K-Means connection profiles",
   "engines": {
     "node": ">=18"
   },
@@ -10,6 +10,9 @@
     "test": "node --test tests/*.cjs",
     "test:python": "python -m unittest discover -s tests -p test_*.py",
     "ml:demo": "node scripts/generate-ml-demo.cjs",
-    "ml:train": "node scripts/train-ml.cjs"
+    "ml:train": "node scripts/train-ml.cjs",
+    "ml:build-default": "node scripts/build-default-model.cjs",
+    "ml:build-clusters": "node scripts/build-cluster-default.cjs",
+    "ml:build-seed": "node scripts/build-learning-seed.cjs"
   }
 }

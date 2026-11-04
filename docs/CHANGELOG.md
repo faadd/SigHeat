@@ -1,5 +1,17 @@
 # Perubahan SigHeat
 
+## Versi 4.0 - 4 November 2026
+
+- Memindahkan prediksi RTT ke halaman peta; menghapus tab Prediksi ML dan tombol training pengguna.
+- Memuat parameter Ridge dan centroid K-Means yang telah dilatih secara offline. Model awal paket berasal dari data sintetis dan ditandai demikian.
+- Mengganti kategori dashboard berbasis threshold RTT dengan tiga kelompok beban relatif dari K-Means; field kategori edge lama diabaikan untuk keputusan tampilan.
+- Menambahkan kandidat pembaruan otomatis dan pembandingan pada pengukuran baru. Kandidat dipromosikan hanya jika memenuhi margin perbaikan terhadap pembanding; baseline regresi dapat tetap dipakai jika lebih baik.
+- Menyimpan model serta riwayat fitur terbatas di browser, dengan ekspor/pemulihan cadangan, pemisahan demo, dan tanpa penyimpanan koordinat GPS atau kredensial broker pada state pembelajaran.
+- Memisahkan identitas model dari boot perangkat sambil mempertahankan larangan window RTT lintas boot/gap; classifier koneksi digunakan bersama dalam konteks proyek/runtime/broker/interval yang sama.
+- Menyediakan builder untuk mengemas model hasil pengukuran kelompok sebagai bawaan situs. Paket awal belum memuat model lapangan kelompok.
+- Menambahkan pengujian engine, persistensi, seed, serta integrasi; hasil eksekusi aktual dicatat di `RELEASE_VALIDATION.md`.
+- Memperbarui pembahasan AI, dataset card, alur demo, presentasi, panduan upgrade, dan daftar file commit. Catatan versi sebelumnya di bawah merupakan riwayat, bukan petunjuk UI versi 4.
+
 ## Versi 3.0 - 4 November 2026
 
 - Menambahkan regresi Ridge untuk RTT berikutnya, pelatihan lokal, pemisahan kronologis, dan evaluasi terhadap dua baseline.

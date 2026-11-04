@@ -1,124 +1,136 @@
-# Menjalankan, mendemokan, dan menguji SigHeat ML
+# Menjalankan dan menguji SigHeat 4.0
 
-## Mulai dari laptop
+## Menjalankan dashboard
 
-Ekstrak ZIP, masuk ke folder proyek yang memuat `server.py`, lalu jalankan:
+Ekstrak paket, masuk ke folder yang memuat `server.py`, lalu jalankan:
 
 ```bash
 python server.py --port 8000
 ```
 
-Buka `http://localhost:8000/dashboard.html`. Server ini hanya membutuhkan Python 3.10+ dan pustaka standar. Model dilatih di browser; Node.js diperlukan hanya untuk CLI dan tes JavaScript. Jalur dua HP tetap mengikuti [README](../README.md), [browser edge](BROWSER_EDGE.md), atau [Android/Termux](ANDROID.md).
+Buka `http://localhost:8000/dashboard.html`. Server memakai Python 3.10+ dan pustaka standar. Model berjalan di browser; tidak perlu memasang pustaka ML Python atau API AI berbayar. Node.js 18+ diperlukan untuk CLI dan tes JavaScript.
 
-## Demo tanpa HP atau broker
+Tidak ada menu Prediksi ML atau tombol training. Pada halaman peta, ringkasan **Pembelajaran otomatis** memperlihatkan **Prediksi RTT berikutnya**, **Kelompok koneksi**, serta asal/status model untuk perangkat terpilih. Buka **Rincian pembelajaran & cadangan** jika perlu melihat proses model atau mengelola hasil.
 
-1. Buka menu **Prediksi ML** pada sidebar.
-2. Klik **Coba data sintetis**. Aplikasi memutus koneksi MQTT dan membersihkan data dashboard sebelumnya, kemudian menggunakan 480 telemetri buatan. Unduh data nyata yang perlu disimpan sebelum beralih.
-3. Periksa label sintetis dan perangkat contoh. Data ini dibuat dengan seed tetap sehingga dapat direproduksi.
-4. Klik **Latih & evaluasi**. Dashboard membagi data menurut waktu, melatih beberapa kandidat Ridge, memilih melalui validation, lalu menampilkan hasil test.
-5. Baca tabel perbandingan Ridge, persistence, dan rata-rata bergerak. Perhatikan satuan ms dan metode yang dipilih.
-6. Periksa RTT terakhir dan prediksi berikutnya. Angka prediksi bukan hasil pengukuran nyata.
-7. Unduh **dataset perangkat (CSV)**, **model (JSON)**, dan **evaluasi (JSON)** bila diperlukan untuk pembahasan.
-8. Klik **Kembali ke pengukuran**, lalu sambungkan kembali broker melalui **Atur koneksi** untuk pengukuran nyata.
+## Demo cepat tanpa HP
 
-Demo sengaja memiliki pola yang mudah dipelajari. Ia memeriksa alur aplikasi, bukan meniru seluruh perilaku Wi-Fi atau membuktikan model akan mengungguli baseline pada jaringan kampus. Demo peta asli “Lihat contoh lokal” hanya berisi sedikit pengamatan ilustratif dan berbeda dari dataset training ML ini.
+1. Buka dashboard dan klik **Lihat contoh lokal**.
+2. Pilih salah satu perangkat contoh pada peta atau daftar perangkat.
+3. Periksa nilai RTT sintetis, kategori beban relatif, dan prediksi berikutnya. Model bawaan sudah tersedia; tidak ada langkah menekan training.
+4. Periksa label asal data/model. Semua sampel pada demo ini adalah ilustrasi, bukan pengukuran nyata.
+5. Hubungkan broker sesuai README untuk kembali menerima pengukuran nyata.
 
-## Melatih memakai pengukuran kedua HP
+Demo peta asli berisi sedikit sampel ilustratif. Ia menunjukkan inferensi model awal, bukan cukup data untuk membuktikan adaptasi otomatis. Dataset demo 480 baris dan generator CLI tetap disertakan untuk pengujian yang dapat diulang. Demo tidak dikirim ke broker dan tidak memperbarui model nyata yang tersimpan.
 
-1. Siapkan kedua HP, laptop, jaringan dan broker mengikuti README. Pastikan ID perangkat berbeda dan ID proyek serta alamat broker sama.
-2. Gunakan opsi sumber yang konsisten untuk percobaan awal, misalnya keduanya Browser atau keduanya Termux. Beri izin sensor. Lokasi opsional untuk peta dan tidak dipakai sebagai fitur ML.
-3. Mulai telemetri dan periksa bahwa kedua perangkat muncul. Pastikan bacaan sensor dan RTT bergerak sesuai aktivitas, serta command/ACK asli bekerja.
-4. Tetapkan interval, misalnya 5 detik, sebelum perekaman. Selama perekaman awal, hindari mengubah interval, memulai ulang sesi, atau berulang kali menekan “Ukur sekarang”.
-5. Pada **Prediksi ML**, pilih **Perangkat untuk model**. Panel memakai kelompok data perangkat/sesi saat ini; HP A dan HP B dilatih terpisah.
-6. Kumpulkan minimal 120 baris dalam satu kelompok. Data dengan timeout atau jeda dapat membuat pasangan valid terlalu sedikit walaupun jumlah baris sudah cukup. Gunakan 300–1.000 baris bila waktu memungkinkan.
-7. Klik **Latih & evaluasi**. Simpan jumlah baris, jumlah pasangan valid, jumlah jendela yang dikeluarkan, alpha, metrik, dan metode terpilih.
-8. Lanjutkan pengukuran untuk melihat prediksi pada data yang datang sesudah pelatihan. Hasil tabel evaluasi tetap berasal dari snapshot saat tombol ditekan; tabel tidak otomatis berubah menjadi evaluasi data baru.
-9. Klik **Latih ulang & evaluasi** hanya jika ingin membuat model dan pembagian waktu baru. Catat bahwa ini eksperimen baru, bukan perbaikan retroaktif hasil test lama.
-10. Ulangi untuk perangkat lainnya, dan ekspor hasil masing-masing.
+## Demonstrasi memakai dua HP nyata
 
-Data dan model berada dalam memori tab. Memuat ulang atau menutup halaman menghapusnya. Buffer ML menyimpan paling banyak 3.000 baris terbaru per kelompok; ekspor berkala sebelum data lama tergeser. Ekspor CSV utama dashboard tetap memiliki batas riwayat peta/sesi sendiri; gunakan **Unduh dataset perangkat (CSV)** untuk alur training ML satu kelompok tanpa koordinat GPS.
+1. Siapkan HP A, HP B, laptop, jaringan, serta broker mengikuti README. Gunakan ID perangkat berbeda, ID proyek sama, dan alamat broker sama.
+2. Buka dashboard melalui origin yang sama dengan sesi sebelumnya agar pembelajaran tersimpan dapat dimuat. Misalnya tetap memakai `http://localhost:8000` pada browser yang sama.
+3. Hubungkan dashboard melalui **Atur koneksi**, lalu mulai kedua edge dengan opsi Browser atau Termux sesuai panduan.
+4. Pastikan pengamatan kedua perangkat diterima, sensor tersedia bila perangkat mendukung, dan command/ACK asli berfungsi.
+5. Pilih perangkat di peta atau tabel. Setelah enam RTT valid pada boot saat ini, periksa prediksi berikutnya. Kategori K-Means menggunakan profil pengamatan yang lengkap.
+6. Lanjutkan perekaman. Sistem mengusulkan kandidat model secara otomatis ketika jumlah data cukup. Status dapat berupa model awal, pengumpulan data, pengujian kandidat, kandidat ditolak, atau model adaptif aktif.
+7. Buka rincian pembelajaran untuk memeriksa jumlah data, kemajuan kandidat, dan metrik pembanding. Tidak perlu menekan tombol training.
+8. Unduh dataset dan cadangan sebelum demonstrasi berakhir. Catat waktu, konfigurasi, dan kondisi percobaan untuk laporan.
 
-Prediksi live berhenti ditampilkan ketika dashboard terputus atau data dianggap tidak aktif. Setelah timeout, perlu enam probe terakhir yang valid dan berurutan agar jendela inferensi kembali tersedia. Pergantian perangkat, sumber, sesi, broker, interval, atau mode accelerometer membutuhkan model yang cocok.
+Pada interval 5 detik, 120 baris memerlukan kira-kira 10 menit bila berjalan lancar. Pengujian kandidat membutuhkan pengukuran baru setelah model dibuat, sehingga jangan mengharapkan model adaptif langsung diterima begitu hitungan mencapai 120. Timeout, gap, data kurang bervariasi, atau baseline yang lebih baik dapat menunda maupun menolak pembaruan.
 
-## Reproduksi melalui command line
+Untuk presentasi singkat, gunakan model yang sudah terkumpul pada percobaan nyata sebelumnya dan origin yang sama. Tetap jelaskan apakah model aktif masih bawaan sintetis atau sudah berasal dari pengukuran. Menunjukkan kandidat ditolak juga merupakan demonstrasi pengendalian model yang valid; jangan memaksa promosi hanya agar terlihat “belajar”.
 
-Jalankan dari folder proyek dengan Node.js yang mendukung `node --test` (disarankan Node.js 20+):
+## Apa yang terjadi setelah refresh atau reboot?
+
+| Kejadian | Hasil yang diharapkan |
+|---|---|
+| Refresh dashboard pada browser/origin sama | Model dan riwayat fitur tersimpan dimuat; telemetri baru masih diperlukan untuk menyatakan perangkat aktif |
+| HP memulai boot baru dengan konteks sama | Model dapat digunakan kembali, tetapi enam RTT inferensi tidak menyambungkan boot lama dan baru |
+| Mengubah broker, interval, sumber, atau mode accelerometer | Konteks regresi berbeda; model yang tidak cocok tidak dipaksakan |
+| Beralih laptop/browser/port/hostname | Penyimpanan origin berbeda; pulihkan cadangan yang sesuai bila diperlukan |
+| Browser menolak atau kehabisan ruang penyimpanan | Aplikasi memberi pesan dan tetap berjalan di memori; perubahan mungkin hilang saat halaman ditutup |
+| Tab dashboard ditutup | Tidak ada proses belajar terus-menerus setelah halaman berhenti berjalan |
+
+Browser HP dapat menjeda pembacaan sensor ketika tab tersembunyi, sesuai perilaku edge asli. Jeda ini bukan kegagalan algoritma training. Gunakan kondisi yang sama untuk membandingkan dua HP.
+
+## Mengunduh dan memulihkan
+
+Buka **Rincian pembelajaran & cadangan** pada halaman peta.
+
+- **Unduh dataset perangkat (CSV)** menyimpan data perangkat/konteks yang dipilih untuk pemeriksaan dan eksperimen.
+- **Unduh cadangan pembelajaran** menyimpan model serta riwayat fitur yang didukung format versi 4.
+- **Pulihkan cadangan pembelajaran (JSON)** membaca cadangan tersebut, memvalidasi isi, dan menolak file yang tidak sesuai.
+- **Hapus pembelajaran tersimpan** menampilkan konfirmasi. Tindakan **Ya, hapus pembelajaran** menghapus pembelajaran lokal SigHeat; **Batal** mempertahankannya. Unduh cadangan lebih dahulu bila ingin dapat memulihkan.
+
+File JSON model tunggal versi 3 bukan cadangan versi 4. Jangan mengubah `source` dari `demo` menjadi `browser` untuk membuat data sintetis terlihat nyata. Cadangan tidak membawa password broker atau koordinat GPS, tetapi tetap memuat metadata seperti ID proyek/perangkat dan alamat broker yang perlu dipertimbangkan sebelum dibagikan.
+
+## Menyiapkan model kelompok sebelum presentasi
+
+Jika kelompok ingin hasil training sendiri tersedia otomatis pada browser baru, lakukan pengukuran nyata dan tunggu model hasil pengukuran dipromosikan, lalu unduh cadangan. Jalankan:
+
+```bash
+node scripts/build-learning-seed.cjs --input sigheat-pembelajaran.json
+```
+
+Builder menolak cadangan yang hanya berisi bootstrap sintetis. Commit `assets/learning-seed.js` hasil builder bersama proyek; file itu memuat state pembelajaran yang telah divalidasi, tanpa GPS/password. Model hanya dipakai pada konteks yang cocok, dan cache lokal valid tetap lebih diprioritaskan. Alur lengkap serta cara menguji seed ada pada `docs/UPGRADE_V4.md`. Tidak ada langkah training/import yang harus dilakukan penonton saat demo.
+
+## Membuat ulang model awal
+
+Jalankan dari akar proyek:
+
+```bash
+node scripts/build-default-model.cjs
+node scripts/build-cluster-default.cjs
+```
+
+Perintah ini melatih model bawaan secara offline dari data sintetis deterministik dan menulis ulang artefak model. Dashboard kemudian memuat parameter hasil training; dashboard tidak menjalankan perintah build saat dibuka.
+
+Eksperimen regresi melalui CLI tetap dapat dijalankan:
 
 ```bash
 node scripts/generate-ml-demo.cjs
 node scripts/train-ml.cjs --input data/demo-synthetic.csv --output models/demo --allow-synthetic
 ```
 
-Opsi `--allow-synthetic` wajib untuk data contoh agar asal data tidak terlewat. Untuk CSV pengukuran nyata yang diunduh dari panel ML:
+Tanpa opsi tambahan, CLI menerima satu aliran/sesi. Tambahkan `--context` untuk data beberapa boot yang berada pada proyek, perangkat, sumber, broker, interval, dan mode sensor yang sama; window input tetap tidak melintasi boot. Contoh:
 
 ```bash
-node scripts/train-ml.cjs --input data/pengukuran-hp-a.csv --output models/hp-a
+node scripts/train-ml.cjs --input data-pengukuran.csv --output models/percobaan --context
 ```
 
-CLI menerima CSV, JSON berupa array baris, atau objek JSON dengan properti `rows`, dengan satu aliran per berkas. Data campuran, nilai numerik tidak valid, duplikat, atau urutan mundur ditolak dengan pesan kesalahan. Hasilnya berupa `model.json` dan `report.json` di direktori keluaran. File unduhan model berfungsi sebagai hasil yang dapat diperiksa/dipakai melalui API JavaScript; dashboard versi ini belum menyediakan tombol impor model.
+`data-pengukuran.csv` pada contoh harus diganti dengan file ekspor kelompok yang benar-benar tersedia. Output model/report CLI tidak otomatis menjadi cadangan dashboard; gunakan ekspor cadangan dashboard untuk builder seed.
 
-## Tes otomatis
+## Pengujian otomatis
 
 ```bash
 node --test tests/*.cjs
 python -m unittest discover -s tests -p 'test_*.py' -v
 ```
 
-Sebagian tes Python memerlukan dependensi jalur Termux, yang dipasang dengan:
+Dependensi jalur Python/Termux dapat dipasang dengan:
 
 ```bash
 python -m pip install -r requirements.txt
 ```
 
-Tes memakai data deterministik dan perangkat/broker tiruan ketika sesuai. Kelulusan tes tidak membuktikan sensor fisik, broker kelompok, izin browser HP, dan akurasi prediksi lapangan.
+Lihat **RELEASE_VALIDATION.md** untuk hasil tes paket yang benar-benar dijalankan. Tes memakai data deterministik, DOM tiruan, dan perangkat/broker tiruan bila sesuai. Kelulusan tes bukan bukti bahwa sensor fisik, browser HP, broker kelompok, atau prediksi jaringan nyata telah terverifikasi.
 
-Hasil pemeriksaan paket pada **4 November 2026**:
+## Protokol percobaan lapangan
 
-| Pemeriksaan | Hasil dan batas bukti |
-|---|---|
-| `npm test` | 57 tes lulus, 0 gagal, mencakup ML serta regresi fungsi core, protokol, dashboard, dan edge |
-| Tes Python | 26 tes dijalankan: 25 lulus, 1 dilewati karena dependensi Paho tidak tersedia untuk pemeriksaan konteks TLS Paho nyata |
-| Verifikasi solver independen | Hasil dibandingkan dengan NumPy: selisih koefisien maksimum sekitar 1,51 × 10⁻¹⁰ dan selisih prediksi sekitar 1,72 × 10⁻¹² ms pada data sintetis |
-| Render browser desktop/HP | Belum dapat diverifikasi pada lingkungan pengerjaan ini |
-| Dua HP fisik dan broker kelompok | Belum diuji; wajib dilakukan kelompok |
-
-Model contoh sintetis menghasilkan test MAE Ridge sekitar **2,546 ms**. Angka ini hanya hasil dari proses buatan yang sengaja mudah dipelajari, bukan akurasi jaringan nyata. Lihat `models/demo/report.json` untuk seluruh nilai dan batas pembagian.
-
-Kasus yang perlu dicakup: urutan input-target, pemisahan waktu, perubahan data test tidak mengubah training, perbandingan baseline, data konstan, sensor hilang, timeout, celah sequence/waktu, campuran konteks, model rusak, perbedaan demo/live, dan mempertahankan fungsi MQTT asli.
-
-## Protokol eksperimen lapangan
-
-Gunakan eksperimen yang memungkinkan kondisi dibandingkan. Jangan mengubah banyak faktor sekaligus.
-
-| Tahap | Tindakan | Catatan yang disimpan |
+| Tahap | Tindakan | Bukti yang dicatat |
 |---|---|---|
-| Persiapan | Catat model HP, OS, browser/Termux, broker dan jalurnya, interval, mode sensor | Identitas eksperimen dan konfigurasi |
-| Kondisi awal | Letakkan dua HP di tempat yang sama dan stabil beberapa menit | RTT, keberhasilan probe, sensor, jumlah timeout |
-| Variasi | Uji satu perubahan, misalnya pindah titik atau aktivitas berjalan | Waktu perubahan dan kondisi yang benar-benar dilakukan |
-| Pelatihan | Latih per perangkat/konteks setelah data cukup | CSV, model, report, jumlah contoh yang tersaring |
-| Evaluasi | Bandingkan MAE/RMSE ketiga metode di test | Hasil menang/kalah, bukan hanya angka terbaik |
-| Pengulangan | Rekam sesi lain pada kondisi yang dicatat | Apakah kesimpulan stabil antarsesi |
-| Pelaporan | Pisahkan bukti sintetis, otomatis, dan perangkat nyata | Video, tabel hasil, keterbatasan |
+| Persiapan | Catat dua HP, OS, runtime, broker/tunnel, interval dan mode sensor | Tabel konfigurasi eksperimen |
+| Kondisi awal | Kedua HP berada di tempat yang sama, stabil, dan tetap aktif | RTT, jitter, keberhasilan, missing sensor |
+| Variasi | Ubah satu kondisi, misalnya titik pengamatan atau aktivitas berjalan | Waktu perubahan dan kondisi sebenarnya |
+| Penyesuaian | Biarkan data baru membentuk kandidat otomatis | Model awal, cut-off training, jumlah penilaian baru |
+| Keputusan | Tunggu syarat evaluasi dan catat diterima/ditolak | MAE ketiga pembanding atau jarak kuantisasi |
+| Pengujian akhir | Setelah pilihan model dibekukan, rekam periode baru | Hasil pada data yang tidak dipakai memilih model |
+| Pengulangan | Ulangi pada waktu/sesi lain dengan konfigurasi dicatat | Kestabilan hasil dan kegagalan generalisasi |
 
-Model versi ini terikat pada `boot_id`, sehingga model sesi lama tidak otomatis digunakan untuk sesi baru di dashboard. Pengulangan antarsesi berarti mengulang protokol pelatihan/evaluasi untuk menilai konsistensi hasil, bukan mengklaim model lama telah diuji lintas sesi. Evaluasi generalisasi model yang sama lintas sesi merupakan pengembangan berikutnya yang memerlukan desain pemisahan tersendiri.
-
-Untuk menilai kontribusi sensor secara khusus, rancang eksperimen ablation yang membandingkan konfigurasi fitur pada pemisahan waktu yang sama. Versi ini belum menampilkan ablation otomatis; jangan menyatakan sensor meningkatkan akurasi hanya karena sensor disertakan sebagai fitur.
+Simpan hasil yang kalah terhadap baseline. Untuk menguji kontribusi sensor, lakukan ablation pada pemisahan waktu yang sama; keberadaan fitur sensor saja tidak membuktikan bahwa sensor meningkatkan prediksi. Untuk menilai makna kategori K-Means, tambahkan observasi pengalaman penggunaan yang independen. Inertia rendah tidak sama dengan kualitas layanan baik.
 
 ## Lembar hasil kelompok
 
-Isi tabel berikut setelah percobaan nyata. Tanda “belum diisi” bukan nilai nol.
+| Percobaan | Perangkat/konteks | Asal model aktif | Sampel/target valid | MAE Ridge | MAE baseline | Status kandidat | Catatan kondisi |
+|---|---|---|---|---|---|---|---|
+| 1 | Belum diisi | Belum diisi | Belum diisi | Belum diisi | Belum diisi | Belum diisi | Belum diisi |
+| 2 | Belum diisi | Belum diisi | Belum diisi | Belum diisi | Belum diisi | Belum diisi | Belum diisi |
 
-| Item | HP A | HP B |
-|---|---|---|
-| Tanggal, waktu, lokasi umum | Belum diisi | Belum diisi |
-| Perangkat dan runtime | Belum diisi | Belum diisi |
-| Broker/jalur dan interval | Belum diisi | Belum diisi |
-| Jumlah baris dan pasangan train/validation/test | Belum diisi | Belum diisi |
-| Jendela yang dikeluarkan | Belum diisi | Belum diisi |
-| Alpha dan prediktor terpilih | Belum diisi | Belum diisi |
-| Test MAE/RMSE Ridge (ms) | Belum diisi | Belum diisi |
-| Test MAE/RMSE persistence (ms) | Belum diisi | Belum diisi |
-| Test MAE/RMSE rerata bergerak (ms) | Belum diisi | Belum diisi |
-| Temuan, kegagalan, dan batasan | Belum diisi | Belum diisi |
-
-Jika baseline menang, itu tetap hasil yang sah. Jelaskan apakah data hampir konstan, sangat acak, terlalu sedikit, atau kondisi test berubah; gunakan data untuk mendukung dugaan tersebut.
+Tanda “belum diisi” bukan nol. Jangan menyalin hasil sintetis sebagai hasil pengukuran lapangan. Dokumentasikan bantuan pengembangan yang digunakan sesuai aturan mata kuliah, lalu pastikan seluruh anggota dapat menjelaskan dan menjalankan kode yang dikumpulkan.

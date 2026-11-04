@@ -4,23 +4,30 @@
 
 SigHeat mengukur waktu perjalanan pesan aplikasi **HP → broker → HP**, variasi latency, dan keberhasilan probe. Hasilnya bukan kekuatan radio dBm, ping ICMP, atau kecepatan unduh. Lokasi opsional membantu menempatkan pengamatan pada peta.
 
-## Tambahan versi 3.0: prediksi RTT dengan ML
+## Versi 4.0: model bawaan dan pembelajaran otomatis
 
-Versi ini menambahkan **regresi Ridge terlatih untuk memperkirakan RTT MQTT pada sampel berikutnya**. Model menggunakan enam RTT terakhir dan konteks sensor, dilatih lokal di browser, lalu dibandingkan dengan persistence dan rata-rata bergerak menggunakan pembagian waktu train/validation/test. Jika ML belum meningkatkan MAE validation minimal 5%, aplikasi memilih baseline dan menyatakan hasil tersebut.
+Versi ini menggabungkan **Ridge Regression untuk prediksi RTT berikutnya** dan **K-Means untuk kategori beban koneksi relatif**. Kategori dashboard memakai centroid yang dipelajari, menggantikan batas RTT 150/500 ms. Model awal dimuat otomatis; pengguna tidak perlu membuka tab ML atau menekan tombol training.
 
-Mulai dengan `python server.py --port 8000`, buka `http://localhost:8000/dashboard.html`, lalu pilih menu **Prediksi ML**. Klik **Coba data sintetis**, kemudian **Latih & evaluasi** untuk demo tanpa broker. Data contoh berlabel sintetis; hasilnya bukan bukti akurasi jaringan nyata. Untuk melatih data kelompok, hubungkan kedua HP seperti panduan di bawah, kumpulkan minimal 120 baris per perangkat/sesi, pilih perangkat, lalu jalankan pelatihan.
+Jalankan `python server.py --port 8000`, lalu buka `http://localhost:8000/dashboard.html`. Hubungkan kedua HP seperti panduan di bawah. Ringkasan ML berada di halaman peta. Setelah enam RTT terbaru valid, model dapat memprediksi; pengumpulan lebih panjang dipakai untuk menyesuaikan model secara otomatis. Kandidat baru diperiksa pada pengukuran berikutnya sebelum menggantikan model aktif.
 
-Data dan model berada dalam memori tab; unduh sebelum menutup atau memuat ulang halaman. Model berlaku pada perangkat, sesi boot, sumber, broker, interval, dan mode sensor yang sama. Dashboard menyediakan ekspor dataset CSV, model JSON, dan evaluasi JSON; impor model melalui UI belum tersedia. Dua opsi edge dan fungsi MQTT asli tetap digunakan.
+**Model bawaan berasal dari data sintetis**, karena arsip sumber belum berisi histori jaringan nyata kelompok. Label asal model tetap ditampilkan. Hasil sintetis tidak membuktikan akurasi Wi-Fi kelompok; penggunaan berulang juga tidak menjamin setiap model baru lebih baik.
+
+Model dan riwayat fitur disimpan secara terbatas pada browser/origin yang sama, tanpa koordinat GPS atau password. Refresh tidak mengharuskan training manual ulang. Boot HP baru tetap memerlukan riwayat RTT baru; jendela tidak menyambungkan dua sesi. Cadangan pembelajaran JSON dapat diunduh dan dipulihkan; data demo tetap terpisah dari model pengukuran nyata.
 
 | Panduan | Isi |
 |---|---|
-| [Pembahasan AI/ML](docs/AI_ML.md) | Perbandingan ketiga ide, alasan pilihan, cara belajar, fitur, evaluasi, batasan |
-| [Pembahasan PDF](docs/Pembahasan_SigHeat_AI.pdf) | Penjelasan siap dibaca, alur sistem, langkah demo, serta hasil contoh sintetis |
-| [Demo dan pengujian](docs/AI_DEMO_DAN_PENGUJIAN.md) | Langkah live/demo, CLI, tes, protokol lapangan dan tabel hasil kelompok |
-| [Dataset card](docs/DATASET_CARD.md) | Skema, asal data, nilai hilang, pemisahan, reproduksibilitas dan privasi |
-| [Pemeriksaan paket](docs/RELEASE_VALIDATION.md) | Hasil tes, batas verifikasi, dan asal kode |
+| [Pembahasan AI/ML](docs/AI_ML.md) | Ridge, K-Means, model awal, adaptasi otomatis, evaluasi, dan batasan |
+| [Pembahasan PDF](docs/Pembahasan_SigHeat_AI_v4.pdf) | Penjelasan siap dibaca dan alur demonstrasi |
+| [Demo dan pengujian](docs/AI_DEMO_DAN_PENGUJIAN.md) | Demo/live, penyimpanan, backup, eksperimen lapangan |
+| [Dataset card](docs/DATASET_CARD.md) | Asal data, fitur, konteks, penyaringan, dan privasi |
+| [Bahan presentasi](docs/AI_PRESENTASI.md) | Susunan slide dan narasi sesuai fitur aktual |
+| [Upgrade versi 4](docs/UPGRADE_V4.md) | Perbedaan dari versi 3, migrasi, dan batas kompatibilitas |
+| [File untuk GitHub](docs/FILES_TO_COMMIT.md) | Penempatan file dan daftar perubahan |
+| [Pemeriksaan paket](docs/RELEASE_VALIDATION.md) | Hasil tes aktual dan batas verifikasi |
 
-Pelatihan contoh melalui Node.js: `npm run ml:demo`, kemudian `node scripts/train-ml.cjs --input data/demo-synthetic.csv --output models/demo --allow-synthetic`. Hasil contoh tersedia dalam `models/demo/model.json` dan `models/demo/report.json`. Kode awal berasal dari ZIP yang diberikan; paket ini belum dipublikasikan ke GitHub kelompok.
+Hasil belajar pengukuran kelompok juga dapat dijadikan bawaan situs melalui `node scripts/build-learning-seed.cjs --input sigheat-pembelajaran.json`. Persiapan ini dilakukan sebelum demo; langkah lengkap ada pada panduan upgrade. Browser baru akan memuat konteks model yang cocok secara otomatis.
+
+Model bawaan sintetis dapat dibuat ulang melalui `node scripts/build-default-model.cjs` dan `node scripts/build-cluster-default.cjs`. CLI latihan tetap tersedia untuk eksperimen; opsi `--context` mendukung beberapa boot yang cocok tanpa window lintas boot. CLI bukan alur penggunaan dashboard versi 4. Kode awal berasal dari ZIP yang diberikan; paket ini belum dipublikasikan ke GitHub kelompok.
 
 ## Anggota Kelompok
 
@@ -270,9 +277,11 @@ Sumber browser dan Termux dapat berada dalam satu proyek, tetapi untuk perbandin
 |---|---|
 | `index.html`, `assets/edge.js` | Edge browser, izin sensor, probe, dan command |
 | `termux_edge.py` | Edge Android melalui Termux:API dan MQTT WSS |
-| `assets/core.js` | Validasi protokol, kategori, dan agregasi lokasi |
+| `assets/core.js` | Validasi protokol, metadata kompatibilitas, dan agregasi lokasi |
+| `assets/ml.js`, `assets/clusters.js` | Regresi Ridge dan kategori koneksi dari K-Means |
+| `assets/learning.js`, `assets/ml-ui.js` | Pembelajaran otomatis, persistensi, dan ringkasan di peta |
 | `dashboard.html`, `assets/app.js` | Pemantauan, kontrol, peta/tabel, ekspor |
 | `server.py` | Server dashboard lokal opsional |
 | `conf/config.xml` | Konfigurasi WebSocket listener HiveMQ CE (Docker) |
 
-Dokumentasi: [Protokol dan algoritma](docs/PROTOCOL.md) · [Rubrik/demo](docs/RUBRIC_AND_DEMO.md) · [Validasi](docs/VALIDATION.md) · [Perubahan](docs/CHANGELOG.md).
+Dokumentasi: [Protokol dan algoritma](docs/PROTOCOL.md) · [Rubrik/demo](docs/RUBRIC_AND_DEMO.md) · [Validasi versi 4](docs/RELEASE_VALIDATION.md) · [Brief IoT](docs/PRESENTATION_BRIEF.md) · [Presentasi AI](docs/AI_PRESENTASI.md) · [Perubahan](docs/CHANGELOG.md).

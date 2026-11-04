@@ -31,10 +31,10 @@
     csvCount: 0,
   };
   const labels = {
-      good: "Responsif",
-      fair: "Cukup",
-      poor: "Perlu dicek",
-      unknown: "Belum terbaca",
+      good: "Beban relatif rendah",
+      fair: "Beban relatif sedang",
+      poor: "Beban relatif tinggi",
+      unknown: "Tidak terklasifikasi",
     },
     colors = {
       good: "#28765a",
@@ -136,14 +136,31 @@
   function mixedSources() {
     return new Set(visiblePoints().map((p) => p.source)).size > 1;
   }
+  function qualityContext(p) {
+    return JSON.stringify([p.project_id || "", p.source, p.broker_endpoint, p.interval_s]);
+  }
+  function mixedContexts() {
+    return new Set(visiblePoints().map(qualityContext)).size > 1;
+  }
+  function learnedClassification(p) {
+    return window.SigHeatMLPanel?.classify(p) || {
+      quality: "unknown", label: labels.unknown, reason: "Model belum tersedia.",
+    };
+  }
+  function refreshClassifications() {
+    for (const p of new Set([...state.points, ...state.devices.values()])) {
+      const result = learnedClassification(p);
+      p.quality = Object.prototype.hasOwnProperty.call(labels, result.quality) ? result.quality : "unknown";
+      p.ml_classification = result;
+    }
+  }
   function qualified(p) {
+    const value = { ...p, project_id: p.project_id || state.project };
+    const result = learnedClassification(value);
     return {
-      ...p,
-      quality:
-        p.connection_quality ||
-        (p.probe_ok === false
-          ? "poor"
-          : C.quality(p.latency_mean_ms, p.success_pct)),
+      ...value,
+      quality: Object.prototype.hasOwnProperty.call(labels, result.quality) ? result.quality : "unknown",
+      ml_classification: result,
       received_at_ms: Date.now(),
     };
   }
@@ -181,6 +198,7 @@
   }
   function render() {
     if (!dashboard) return;
+    refreshClassifications();
     const selected = state.devices.get(state.selected);
     if (
       !selected ||
@@ -189,7 +207,7 @@
         selected.source !== state.sourceFilter)
     )
       state.selected = visibleDevices()[0]?.device_id || null;
-    if (mixedSources() && state.mapMode === "grid") state.mapMode = "points";
+    if (mixedContexts() && state.mapMode === "grid") state.mapMode = "points";
     renderMode();
     renderMetrics();
     renderDevices();
@@ -199,6 +217,8 @@
     const active = state.devices.get(state.selected);
     window.SigHeatMLPanel?.updateSelection({
       selected: state.selected,
+      row: active || null,
+      contextCount: new Set(visiblePoints().map(qualityContext)).size,
       connected: state.connected,
       demo: state.demo,
       stale: !active || stale(active),
@@ -220,13 +240,15 @@
         ? "Contoh lokal tidak berasal dari Browser atau Termux."
         : mixedSources()
           ? "Rerata dan grid gabungan dinonaktifkan. Pilih satu sumber untuk membandingkan hasil."
+          : mixedContexts()
+            ? "Beberapa interval atau konteks model ditampilkan. Kelompok relatif tidak langsung sebanding; grid gabungan dinonaktifkan."
           : "Bandingkan perangkat dengan opsi, broker, dan kondisi yang sama.",
     );
     if ($("map-grid")) {
-      $("map-grid").disabled = mixedSources();
-      $("map-grid").title = mixedSources()
-        ? "Pilih satu sumber sebelum melihat grid."
-        : "Grid sampel terukur per sumber.";
+      $("map-grid").disabled = mixedContexts();
+      $("map-grid").title = mixedContexts()
+        ? "Grid memerlukan satu konteks sumber, broker, proyek, dan interval."
+        : "Grid kelas ML mayoritas pada satu konteks model.";
     }
     text(
       "mode-chip",
@@ -434,9 +456,7 @@
   }
   function selectDevice(id) {
     state.selected = id;
-    renderDevices();
-    renderDetail();
-    renderMap();
+    render();
   }
   function renderDetail() {
     const p = state.devices.get(state.selected);
@@ -459,7 +479,7 @@
     text(
       "detail-signal",
       p
-        ? "Latensi aplikasi MQTT · " + labels[p.quality]
+        ? (p.probe_ok ? "RTT aplikasi · " + labels[p.quality] : "Probe timeout · RTT belum diketahui")
         : "Belum ada sampel dari perangkat",
     );
     text("detail-source", p ? sourceLabel(p.source) : "–");
@@ -535,7 +555,7 @@
     text(
       "insight-title",
       valid.length
-        ? `${poor.length} dari ${valid.length} sampel perlu ditinjau.`
+        ? `${poor.length} dari ${valid.length} sampel pada kelompok beban relatif tinggi.`
         : "Mulai pengukuran bersama.",
     );
     text(
@@ -543,7 +563,7 @@
       state.demo
         ? "Contoh ini menunjukkan latensi lebih tinggi pada HP Area B. Ini bukan hasil sensor atau kondisi jaringan nyata."
         : valid.length
-          ? "Ulangi saat HP diam, dengan opsi Browser atau Termux yang sama. Perbedaan runtime dapat memengaruhi latensi aplikasi."
+          ? "Kelas KMeans berasal dari pola RTT, jitter, dan keberhasilan probe. Kelompok tinggi bersifat relatif terhadap model; tidak memastikan penyebab gangguan."
           : "Buka kontributor pada dua HP dengan ID berbeda. Gunakan broker dan Project ID yang sama.",
     );
   }
@@ -564,11 +584,6 @@
         "Perangkat",
         "Kelola perangkat pengukuran.",
         "Browser dan Termux + Python mengirim data serta menerima perintah melalui MQTT.",
-      ],
-      ml: [
-        "Prediksi ML",
-        "Antisipasi RTT berikutnya.",
-        "Latih model dari data perangkat, lalu bandingkan dengan prediksi sederhana.",
       ],
       activity: [
         "Aktivitas",
@@ -615,6 +630,7 @@
       });
   }
   function changeMapMode(mode) {
+    if (mode === "grid" && mixedContexts()) return;
     if (state.map) {
       state.map.remove();
       state.map = null;
@@ -625,6 +641,7 @@
     renderMap();
   }
   function renderMap() {
+    refreshClassifications();
     const root = $("signal-map");
     if (!root) return;
     ["points", "grid", "roads"].forEach((mode) =>
@@ -633,7 +650,7 @@
     text(
       "map-view-note",
       state.mapMode === "grid"
-        ? "Grid terukur ±25 m · sel kosong belum diukur"
+        ? "Kelas ML mayoritas per sel ±25 m · seri ditandai abu-abu"
         : state.mapMode === "roads"
           ? "Peta OSM · pilih Titik jika peta gagal"
           : "Plot koordinat · tanpa peta dasar",
@@ -655,6 +672,8 @@
         popup.append(
           el("strong", name(p.device_id)),
           el("div", fmt(p.latency_mean_ms) + " ms · " + sourceLabel(p.source)),
+          el("div", p.probe_ok ? labels[p.quality] : "Probe timeout; tidak terklasifikasi"),
+          el("div", "Model " + (p.ml_classification?.model_id || "belum tersedia")),
           el("div", p.latitude.toFixed(5) + ", " + p.longitude.toFixed(5)),
         );
         marker.bindPopup(popup).on("click", () => selectDevice(p.device_id));
@@ -675,7 +694,7 @@
       el(
         "span",
         state.mapMode === "grid"
-          ? "Rerata per sel ±25 m · tanpa interpolasi"
+          ? "Kelas ML mayoritas ±25 m · tanpa interpolasi"
           : "Plot koordinat WGS84 · utara di atas",
         "fallback-caption",
       ),
@@ -710,9 +729,9 @@
         1.55,
       lonSpan = (latSpan * ratio) / cos;
     if (state.mapMode === "grid") {
-      C.aggregateGrid(points, 25).forEach((cell) => {
+      C.aggregateGrid(points, 25, { classify: learnedClassification, scope: qualityContext }).forEach((cell) => {
         const quality =
-            cell.quality || C.quality(cell.latency_mean_ms, cell.success_pct),
+            cell.quality || "unknown",
           button = el("button", undefined, "measured-cell"),
           w =
             ((cell.bounds
@@ -733,7 +752,8 @@
         button.style.width = w + "%";
         button.style.height = h + "%";
         button.style.background = colors[quality];
-        button.title = `${fmt(cell.latency_mean_ms, 1)} ms · ${cell.count} sampel · ${sourceLabel(cell.source)} · sel ±25 m`;
+        const counts = cell.quality_counts || {};
+        button.title = `${labels[quality]} · ${fmt(cell.latency_mean_ms, 1)} ms · ${cell.count} sampel · rendah ${counts.good || 0}, sedang ${counts.fair || 0}, tinggi ${counts.poor || 0}, tidak terklasifikasi ${counts.unknown || 0} · model ${(cell.quality_model_ids || []).join(", ") || "belum tersedia"} · ${sourceLabel(cell.source)} · sel ±25 m`;
         button.setAttribute("aria-label", button.title);
         if ((w * root.clientWidth) / 100 > 17)
           button.textContent = String(cell.count);
@@ -754,7 +774,7 @@
       button.style.left = x + "%";
       button.style.top = y + "%";
       button.style.background = colors[p.quality];
-      button.title = `${name(p.device_id)} · ${sourceLabel(p.source)} · ${fmt(p.latency_mean_ms)} ms · ${p.latitude.toFixed(5)}, ${p.longitude.toFixed(5)}`;
+      button.title = `${name(p.device_id)} · ${sourceLabel(p.source)} · ${fmt(p.latency_mean_ms)} ms · ${p.probe_ok ? labels[p.quality] : "Probe timeout"} · model ${p.ml_classification?.model_id || "belum tersedia"} · ${p.latitude.toFixed(5)}, ${p.longitude.toFixed(5)}`;
       button.setAttribute("aria-label", button.title);
       button.addEventListener("click", () => selectDevice(p.device_id));
       plane.append(button);
@@ -1137,7 +1157,7 @@
           device_id: id,
           boot_id: "contoh-" + id,
           sequence: i + 1,
-          sent_at_ms: now - 60000 + i * 10000,
+          sent_at_ms: now - 25000 + i * 5000,
           source: "demo",
           latency_type: "mqtt_app_rtt",
           latency_ms: mean,
@@ -1157,13 +1177,14 @@
           latitude: lat + (i - 5) * 0.00023,
           longitude: lon + (i - 5) * 0.00032,
           accuracy_m: 6 + deviceIndex * 2,
-          location_at_ms: now - 60000 + i * 10000,
+          location_at_ms: now - 25000 + i * 5000,
           interval_s: 5,
           sensor_errors: [],
           broker_endpoint: "wss://example.invalid/mqtt",
         });
         state.points.push(p);
         state.devices.set(id, p);
+        window.SigHeatMLPanel?.ingest(p);
       }),
     );
     state.selected = "hp-a";
@@ -1493,14 +1514,7 @@
   }
   if (dashboard) {
     window.SigHeatMLPanel?.configure({
-      onDemo() {
-        disconnect(false);
-        clearData();
-        state.demo = false;
-        state.project = "";
-        state.broker = "";
-        render();
-      },
+      onChange: render,
     });
     document.querySelectorAll("[data-open-connection]").forEach((b) =>
       b.addEventListener("click", () => {

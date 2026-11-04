@@ -1,0 +1,40 @@
+{
+  "format": "sigheat-kmeans-v1",
+  "schema_version": 1,
+  "algorithm": "kmeans",
+  "k": 3,
+  "transform": "log1p_ms_div_log60001_and_failure_fraction",
+  "features": [
+    "log_rtt",
+    "log_jitter",
+    "failure_fraction"
+  ],
+  "centroids": [
+    [
+      0.36521535823157497,
+      0.14481459221916615,
+      0.009806187500000004
+    ],
+    [
+      0.49309396609603373,
+      0.3232193522899291,
+      0.06064462499999997
+    ],
+    [
+      0.6223778315974544,
+      0.48871621571085394,
+      0.27909912499999995
+    ]
+  ],
+  "counts": [
+    160,
+    160,
+    160
+  ],
+  "inertia": 0.2814171546004103,
+  "trained_rows": 480,
+  "ignored_rows": 0,
+  "provenance": "synthetic",
+  "label_rule": "Urutkan pusat klaster menurut jumlah tiga fitur: beban relatif rendah/sedang/tinggi. Ini penamaan arah, bukan batas ms atau label kebenaran.",
+  "model_id": "kmeans-686e686b"
+}

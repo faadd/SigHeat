@@ -65,7 +65,7 @@
   }
   function adjacent(a, b) {
     const dt = b.sent_at_ms - a.sent_at_ms;
-    return b.sequence === a.sequence + 1 && dt >= a.interval_s * 500 && dt <= a.interval_s * 2500;
+    return a.boot_id === b.boot_id && b.sequence === a.sequence + 1 && dt >= a.interval_s * 500 && dt <= a.interval_s * 2500;
   }
   function validWindow(rows) {
     return rows.every((r, i) => r.probe_ok && finite(r.latency_ms, 0, 60000) && (!i || adjacent(rows[i - 1], r)));
@@ -242,6 +242,133 @@
     }
     return rows;
   }
+  // A persisted context intentionally excludes boot_id. Every feature window still
+  // checks boot identity, consecutive sequence, and elapsed time through adjacent().
+  function contextKey(row) {
+    return JSON.stringify([row.project_id || "", row.device_id, row.source,
+      endpoint(row.broker_endpoint), row.interval_s, row.accel_mode]);
+  }
+  function prepareContextRows(input) {
+    if (!Array.isArray(input) || !input.length || input.length > MAX_ROWS)
+      throw new Error(`Dataset konteks harus berisi 1–${MAX_ROWS} baris.`);
+    const rows = input.map((row) => prepareRows([row])[0]);
+    const key = contextKey(rows[0]), sequences = new Map();
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      if (contextKey(row) !== key) throw new Error("Dataset mencampur konteks perangkat, sumber, broker, interval, atau mode sensor.");
+      if (i && row.sent_at_ms <= rows[i - 1].sent_at_ms) throw new Error("Waktu harus meningkat; data mundur atau duplikat ditolak.");
+      if (sequences.has(row.boot_id) && row.sequence <= sequences.get(row.boot_id)) throw new Error("Sequence duplikat atau mundur pada sesi boot yang sama.");
+      sequences.set(row.boot_id, row.sequence);
+    }
+    return rows;
+  }
+  function fingerprint(value) {
+    let hash = 2166136261;
+    for (const char of JSON.stringify(value)) { hash ^= char.charCodeAt(0); hash = Math.imul(hash, 16777619); }
+    return (hash >>> 0).toString(16).padStart(8, "0");
+  }
+  function contextFingerprint(model) {
+    return fingerprint([model.format, model.schema_version, model.scope, model.context_key,
+      model.window, model.features, model.centers, model.scales, model.coefficients,
+      model.intercept, model.alpha, model.horizon_s, model.training_interval_s,
+      model.provenance, model.applicability || null, model.trained_through_ms,
+      model.evaluated_through_ms, model.validation, model.test]);
+  }
+  function trainContexts(input) {
+    const rows = prepareContextRows(input);
+    if (rows.length < MIN_ROWS) throw new Error(`Perlu minimal ${MIN_ROWS} baris konteks; tersedia ${rows.length}.`);
+    const a = Math.floor(rows.length * 0.6), b = Math.floor(rows.length * 0.8);
+    const raw = { train: rows.slice(0, a), validation: rows.slice(a, b), test: rows.slice(b) };
+    const parts = Object.fromEntries(Object.entries(raw).map(([key, value]) => [key, examples(value)]));
+    for (const [key, data] of Object.entries(parts))
+      if (data.length < (key === "train" ? 24 : 8)) throw new Error(`Pasangan valid ${key} belum cukup (${data.length}); tunggu data berurutan.`);
+    const candidates = ALPHAS.map((alpha) => {
+      const fitted = fit(parts.train, alpha);
+      return { fitted, validation: evaluate(fitted, parts.validation) };
+    }).sort((a, b) => a.validation.ridge.mae_ms - b.validation.ridge.mae_ms || a.fitted.alpha - b.fitted.alpha);
+    const chosen = candidates[0], provenance = rows[0].source === "demo" ? "synthetic" : "measured";
+    const report = {
+      algorithm: "standardized_ridge_autoregression", context_key: contextKey(rows[0]), provenance,
+      target: "next_successful_immediate_mqtt_app_rtt_ms", horizon_s: rows[0].interval_s,
+      rows: { total: rows.length, train: raw.train.length, validation: raw.validation.length, test: raw.test.length },
+      examples: Object.fromEntries(Object.entries(parts).map(([key, values]) => [key, values.length])),
+      excluded_windows: Object.fromEntries(Object.entries(parts).map(([key, values]) => [key, raw[key].length - WINDOW - values.length])),
+      split_boundaries: Object.fromEntries(Object.entries(parts).map(([key, values]) => [key, range(raw[key], values)])),
+      features: FEATURES.slice(), alpha: chosen.fitted.alpha,
+      validation: chosen.validation, test: evaluate(chosen.fitted, parts.test),
+      note: "Validasi kronologis memilih alpha. Ini evaluasi historis, bukan bukti performa masa depan. Kandidat adaptif harus dinilai lagi pada target yang datang setelah kandidat dibekukan. Statistik koneksi yang sudah diringkas perangkat dapat memuat observasi sebelumnya; tidak memakai masa depan.",
+    };
+    const model = {
+      format: "sigheat-ridge-context-v1", schema_version: 1, scope: "context", context_key: report.context_key,
+      window: WINDOW, features: FEATURES.slice(), ...chosen.fitted, provenance,
+      horizon_s: rows[0].interval_s, training_interval_s: rows[0].interval_s,
+      trained_through_ms: raw.train.at(-1).sent_at_ms, evaluated_through_ms: rows.at(-1).sent_at_ms,
+      validation: report.validation, test: report.test, report,
+    };
+    model.model_id = "ridge-context-" + contextFingerprint(model);
+    if (!validateContextModel(model)) throw new Error("Model konteks tidak lolos validasi numerik.");
+    return { model, report };
+  }
+  function trainBootstrap(input) {
+    const rows = prepareContextRows(input);
+    if (rows.some((row) => row.source !== "demo")) throw new Error("Pembentuk bootstrap ini hanya menerima dataset sintetis yang ditandai demo.");
+    const result = trainContexts(rows), model = {
+      ...result.model, scope: "bootstrap", context_key: null,
+      applicability: { sources: ["browser", "termux", "demo"], interval_min_s: 2, interval_max_s: 60,
+        accel_modes: ["linear", "gravity_removed", "unavailable"] },
+      source_note: "Model awal dilatih offline pada data sintetis dengan interval " + rows[0].interval_s + " detik. Transfer ke perangkat, mode sensor, dan interval lain bersifat eksperimental dan belum tervalidasi lapangan.",
+    };
+    model.model_id = "ridge-bootstrap-" + contextFingerprint(model);
+    if (!validateContextModel(model)) throw new Error("Model bootstrap tidak valid.");
+    return { model, report: result.report };
+  }
+  function validateContextModel(model) {
+    if (!model || typeof model !== "object" || Array.isArray(model) || model.format !== "sigheat-ridge-context-v1" || model.schema_version !== 1 || model.window !== WINDOW) return false;
+    if (!Array.isArray(model.features) || JSON.stringify(model.features) !== JSON.stringify(FEATURES)) return false;
+    for (const key of ["centers", "scales", "coefficients"])
+      if (!Array.isArray(model[key]) || model[key].length !== FEATURES.length || !model[key].every((value) => finite(value, key === "scales" ? 1e-12 : -1e12, 1e12))) return false;
+    if (!finite(model.intercept, 0, 60000) || !ALPHAS.includes(model.alpha) || !finite(model.horizon_s, 2, 60) || model.training_interval_s !== model.horizon_s) return false;
+    if (!["synthetic", "measured"].includes(model.provenance) || !finite(model.trained_through_ms, 1, Number.MAX_SAFE_INTEGER) || !finite(model.evaluated_through_ms, model.trained_through_ms, Number.MAX_SAFE_INTEGER)) return false;
+    if (typeof model.model_id !== "string" || !["context", "bootstrap"].includes(model.scope)) return false;
+    try {
+      if (model.model_id !== "ridge-" + model.scope + "-" + contextFingerprint(model)) return false;
+    } catch (_) { return false; }
+    for (const split of ["validation", "test"]) for (const method of ["ridge", "persistence", "moving_average"])
+      if (!validateMetric(model[split]?.[method])) return false;
+    if (model.scope === "bootstrap") {
+      const a = model.applicability;
+      return model.context_key === null && model.provenance === "synthetic" && a &&
+        JSON.stringify(a.sources) === JSON.stringify(["browser", "termux", "demo"]) &&
+        a.interval_min_s === 2 && a.interval_max_s === 60 &&
+        JSON.stringify(a.accel_modes) === JSON.stringify(["linear", "gravity_removed", "unavailable"]);
+    }
+    if (model.scope !== "context" || typeof model.context_key !== "string" || model.context_key.length > 2048) return false;
+    let context; try { context = JSON.parse(model.context_key); } catch (_) { return false; }
+    return Array.isArray(context) && context.length === 6 && (context[0] === "" || id(context[0])) && id(context[1]) &&
+      ["browser", "termux", "demo"].includes(context[2]) && endpoint(context[3]) === context[3] && context[4] === model.horizon_s &&
+      ["linear", "gravity_removed", "unavailable"].includes(context[5]) && (context[2] === "demo") === (model.provenance === "synthetic");
+  }
+  function forecastContext(model, input) {
+    if (!validateContextModel(model)) return { status: "invalid_model", reason: "Model konteks tidak valid." };
+    let rows; try { rows = prepareContextRows(input); } catch (error) { return { status: "invalid_data", reason: error.message }; }
+    const last = rows.at(-1);
+    if (model.scope === "context" && contextKey(last) !== model.context_key) return { status: "incompatible", reason: "Model tidak cocok dengan konteks perangkat ini." };
+    if (rows.length < WINDOW) return { status: "warming_up", reason: `Menunggu ${WINDOW} pengukuran awal yang berurutan.` };
+    const window = rows.slice(-WINDOW);
+    if (!validWindow(window)) return { status: "unavailable", reason: "Menunggu enam RTT valid setelah pergantian sesi, timeout, atau jeda." };
+    const ridge = predict(model, features(window));
+    if (!finite(ridge, 0, 60000)) return { status: "invalid_model", reason: "Perhitungan model tidak terbatas." };
+    return {
+      status: "ready", prediction_ms: ridge, ml_prediction_ms: ridge,
+      persistence_ms: last.latency_ms, moving_average_ms: mean(window.map((row) => row.latency_ms)),
+      method: "ridge", horizon_s: last.interval_s, provenance: model.provenance, model_id: model.model_id,
+      based_on_ms: last.sent_at_ms, based_on_boot_id: last.boot_id, based_on_sequence: last.sequence,
+      forecast_for_ms: last.sent_at_ms + last.interval_s * 1000,
+      warning: model.scope === "bootstrap" ? "Model awal sintetis; transfer ke pengukuran nyata belum tervalidasi. Interval latih " + model.training_interval_s + " detik."
+        : "Perkiraan sampel berikutnya pada konteks yang sama; bukan kepastian atau prediksi timeout.",
+    };
+  }
   return { WINDOW, MIN_ROWS, MAX_ROWS, FEATURES: FEATURES.slice(), groupKey, prepareRows, train, forecast, validateModel, generateDemoRows,
-    buildExamples: (rows) => examples(prepareRows(rows)) };
+    buildExamples: (rows) => examples(prepareRows(rows)), contextKey, prepareContextRows, trainContexts, trainBootstrap,
+    validateContextModel, forecastContext, buildContextExamples: (rows) => examples(prepareContextRows(rows)) };
 });

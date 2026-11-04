@@ -55,8 +55,9 @@ function main(argv = process.argv.slice(2)) {
   for (let i = 0; i < argv.length; i++) {
     const key = argv[i];
     if (key === "--allow-synthetic") args.allowSynthetic = true;
+    else if (key === "--context") args.context = true;
     else if (key === "--help" || key === "-h") {
-      console.log("node scripts/train-ml.cjs --input dataset.csv|dataset.json --output models/session [--allow-synthetic]\nSatu aliran (proyek/perangkat/boot/sumber/broker/interval/mode sensor), minimal 120 telemetri. Data sintetis memerlukan --allow-synthetic.");
+      console.log("node scripts/train-ml.cjs --input dataset.csv|dataset.json --output models/session [--context] [--allow-synthetic]\nTanpa --context: satu aliran termasuk boot. Dengan --context: beberapa boot dalam proyek/perangkat/sumber/broker/interval/mode sensor yang sama; jendela tidak melintasi boot. Minimal 120 telemetri. Data sintetis memerlukan --allow-synthetic.");
       return;
     } else if (["--input", "--output"].includes(key) && argv[i + 1] && !argv[i + 1].startsWith("--")) args[key.slice(2)] = argv[++i];
     else throw new Error(`Argumen tidak dikenal/tidak lengkap: ${key}. Gunakan --help.`);
@@ -69,13 +70,14 @@ function main(argv = process.argv.slice(2)) {
     const parsed = JSON.parse(text);
     rows = Array.isArray(parsed) ? parsed : parsed.rows;
   } else rows = parseCSV(text);
-  rows = ML.prepareRows(rows);
+  rows = args.context ? ML.prepareContextRows(rows) : ML.prepareRows(rows);
   if (rows[0].source === "demo" && !args.allowSynthetic) throw new Error("Data contoh/sintetis ditolak secara default. Tambahkan --allow-synthetic hanya untuk demonstrasi.");
-  const result = ML.train(rows);
+  const result = args.context ? ML.trainContexts(rows) : ML.train(rows);
   fs.mkdirSync(args.output, { recursive: true });
   fs.writeFileSync(path.join(args.output, "model.json"), JSON.stringify(result.model, null, 2) + "\n");
   fs.writeFileSync(path.join(args.output, "report.json"), JSON.stringify(result.report, null, 2) + "\n");
-  console.log(JSON.stringify({ provenance: result.report.provenance, selected_predictor: result.report.selected_predictor,
+  console.log(JSON.stringify({ provenance: result.report.provenance, model_format: result.model.format,
+    selected_predictor: result.report.selected_predictor,
     examples: result.report.examples, test: result.report.test,
     output: path.resolve(args.output), note: result.report.note }, null, 2));
 }
