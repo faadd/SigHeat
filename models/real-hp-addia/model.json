@@ -1,0 +1,224 @@
+{
+  "format": "sigheat-ridge-context-v1",
+  "schema_version": 1,
+  "scope": "context",
+  "context_key": "[\"A\",\"hp-addia\",\"browser\",\"wss://broker.hivemq.com:8884/mqtt\",5,\"linear\"]",
+  "window": 6,
+  "features": [
+    "rtt_lag_0",
+    "rtt_lag_1",
+    "rtt_lag_2",
+    "rtt_lag_3",
+    "rtt_lag_4",
+    "rtt_lag_5",
+    "rtt_mean_6",
+    "rtt_std_6",
+    "rtt_slope_6",
+    "success_pct",
+    "latency_std_ms",
+    "accel_rms",
+    "gyro_rms_rad_s",
+    "accel_missing",
+    "gyro_missing",
+    "jitter_missing"
+  ],
+  "centers": [
+    251.83281250000005,
+    253.16718750000004,
+    250.8351562500001,
+    250.90078125000008,
+    245.44062500000007,
+    246.70312500000006,
+    249.8132812499999,
+    76.7849388863683,
+    1.0259375000000006,
+    100,
+    79.66242187499996,
+    0.16907031249999993,
+    0.03793203125000005,
+    0,
+    0,
+    0
+  ],
+  "scales": [
+    106.21565114586387,
+    106.72145410876783,
+    105.89048705343215,
+    105.87805300799899,
+    78.0997043423301,
+    80.61142902984896,
+    34.079415611187706,
+    50.65291009252759,
+    27.216968094299073,
+    1,
+    39.3316780873353,
+    0.4368053922299407,
+    0.1988912736638392,
+    1,
+    1,
+    1
+  ],
+  "coefficients": [
+    -15.704688313921535,
+    -21.76269489209648,
+    11.409114857938443,
+    -29.8072018604041,
+    -6.858223096368615,
+    -3.8521465868748686,
+    -33.1803134170726,
+    55.142593379858056,
+    -9.975811041144125,
+    0,
+    2.899332786256297,
+    -18.188338708549757,
+    8.54082745654436,
+    0,
+    0,
+    0
+  ],
+  "intercept": 250.58515625,
+  "alpha": 0.1,
+  "provenance": "measured",
+  "horizon_s": 5,
+  "training_interval_s": 5,
+  "trained_through_ms": 1793875215210,
+  "evaluated_through_ms": 1793875875239,
+  "validation": {
+    "ridge": {
+      "n": 47,
+      "mae_ms": 54.827558369443466,
+      "rmse_ms": 71.55230599285606
+    },
+    "persistence": {
+      "n": 47,
+      "mae_ms": 98.99148936170214,
+      "rmse_ms": 139.6652289233536
+    },
+    "moving_average": {
+      "n": 47,
+      "mae_ms": 80.2290780141844,
+      "rmse_ms": 96.00108512487587
+    }
+  },
+  "test": {
+    "ridge": {
+      "n": 54,
+      "mae_ms": 46.43264690105899,
+      "rmse_ms": 64.56652771397108
+    },
+    "persistence": {
+      "n": 54,
+      "mae_ms": 92.61111111111111,
+      "rmse_ms": 127.2224721006765
+    },
+    "moving_average": {
+      "n": 54,
+      "mae_ms": 63.0302469135802,
+      "rmse_ms": 82.05157228477279
+    }
+  },
+  "report": {
+    "algorithm": "standardized_ridge_autoregression",
+    "context_key": "[\"A\",\"hp-addia\",\"browser\",\"wss://broker.hivemq.com:8884/mqtt\",5,\"linear\"]",
+    "provenance": "measured",
+    "target": "next_successful_immediate_mqtt_app_rtt_ms",
+    "horizon_s": 5,
+    "rows": {
+      "total": 296,
+      "train": 177,
+      "validation": 59,
+      "test": 60
+    },
+    "examples": {
+      "train": 128,
+      "validation": 47,
+      "test": 54
+    },
+    "excluded_windows": {
+      "train": 43,
+      "validation": 6,
+      "test": 0
+    },
+    "split_boundaries": {
+      "train": {
+        "raw_start_ms": 1793872645172,
+        "raw_end_ms": 1793875215210,
+        "first_input_ms": 1793872652442,
+        "first_target_ms": 1793872680747,
+        "last_input_ms": 1793875210209,
+        "last_target_ms": 1793875215210
+      },
+      "validation": {
+        "raw_start_ms": 1793875220388,
+        "raw_end_ms": 1793875575470,
+        "first_input_ms": 1793875220388,
+        "first_target_ms": 1793875250209,
+        "last_input_ms": 1793875570214,
+        "last_target_ms": 1793875575470
+      },
+      "test": {
+        "raw_start_ms": 1793875580226,
+        "raw_end_ms": 1793875875239,
+        "first_input_ms": 1793875580226,
+        "first_target_ms": 1793875610226,
+        "last_input_ms": 1793875870230,
+        "last_target_ms": 1793875875239
+      }
+    },
+    "features": [
+      "rtt_lag_0",
+      "rtt_lag_1",
+      "rtt_lag_2",
+      "rtt_lag_3",
+      "rtt_lag_4",
+      "rtt_lag_5",
+      "rtt_mean_6",
+      "rtt_std_6",
+      "rtt_slope_6",
+      "success_pct",
+      "latency_std_ms",
+      "accel_rms",
+      "gyro_rms_rad_s",
+      "accel_missing",
+      "gyro_missing",
+      "jitter_missing"
+    ],
+    "alpha": 0.1,
+    "validation": {
+      "ridge": {
+        "n": 47,
+        "mae_ms": 54.827558369443466,
+        "rmse_ms": 71.55230599285606
+      },
+      "persistence": {
+        "n": 47,
+        "mae_ms": 98.99148936170214,
+        "rmse_ms": 139.6652289233536
+      },
+      "moving_average": {
+        "n": 47,
+        "mae_ms": 80.2290780141844,
+        "rmse_ms": 96.00108512487587
+      }
+    },
+    "test": {
+      "ridge": {
+        "n": 54,
+        "mae_ms": 46.43264690105899,
+        "rmse_ms": 64.56652771397108
+      },
+      "persistence": {
+        "n": 54,
+        "mae_ms": 92.61111111111111,
+        "rmse_ms": 127.2224721006765
+      },
+      "moving_average": {
+        "n": 54,
+        "mae_ms": 63.0302469135802,
+        "rmse_ms": 82.05157228477279
+      }
+    },
+    "note": "Validasi kronologis memilih alpha. Ini evaluasi historis, bukan bukti performa masa depan. Kandidat adaptif harus dinilai lagi pada target yang datang setelah kandidat dibekukan. Statistik koneksi yang sudah diringkas perangkat dapat memuat observasi sebelumnya; tidak memakai masa depan."
+  },
+  "model_id": "ridge-context-c92016aa"
+}
