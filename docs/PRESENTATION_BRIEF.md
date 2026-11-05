@@ -1,5 +1,7 @@
 # Brief PPT SigHeat: dua opsi edge
 
+**Ruang lingkup:** brief ini menjelaskan fondasi IoT dua opsi edge. Pada versi 4, lengkapi bagian dashboard dengan prediksi Ridge, kategori K-Means, dan pembelajaran otomatis dari [AI_PRESENTASI.md](AI_PRESENTASI.md). Gunakan hasil pemeriksaan rilis terbaru pada [RELEASE_VALIDATION.md](RELEASE_VALIDATION.md); kategori dashboard kini berasal dari model, bukan threshold RTT lama.
+
 Gunakan bahasa Indonesia, identitas kelompok, dan hasil pengujian aktual. Delapan slide berikut menjelaskan masalah, arsitektur, sensor, processing, cloud, dashboard, hasil, dan pengumpulan. Brief menyediakan copy dan elemen visual; bukan PPT yang telah dirender.
 
 **Argumen:** Dua HP dapat menjadi edge multisensor melalui browser atau Termux untuk mengamati kualitas koneksi aplikasi melalui MQTT, dengan bukti pengukuran dan batas klaim yang jelas.
@@ -214,7 +216,7 @@ README PocketGuard yang dilampirkan pengguna telah diperiksa dan dipakai sebagai
 | Command dan ACK               | Belum diuji       | Command ID, target sesi, telemetry  |
 | Tab tersembunyi/koneksi putus | Belum diuji       | Status jeda/offline dan mulai ulang |
 
-**Highlight:** Kolom hasil aktual. **Sumber/catatan:** S5; isi hasil software hanya dari VALIDATION.md akhir.
+**Highlight:** Kolom hasil aktual. **Sumber/catatan:** S5; isi hasil software dari RELEASE_VALIDATION.md versi 4; VALIDATION.md menyimpan riwayat versi 2.1.
 
 ### 2. Perbandingan titik memerlukan durasi, broker, dan prosedur yang sama.
 

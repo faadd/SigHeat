@@ -1,4 +1,36 @@
-# Perubahan SigHeat: dua opsi edge
+# Perubahan SigHeat
+
+## Versi 4.1 - 4 November 2026
+
+- Menambahkan **Mode Heatmap** tepat di samping **Peta jalan**, dengan area pengamatan tidak beraturan dan legenda warna khusus.
+- Menghaluskan kelompok K-Means aktif menggunakan kernel ternormalisasi dengan radius 35 m. Pengamatan dalam sel sekitar 2 m diringkas sehingga warna tidak merepresentasikan kepadatan sampel.
+- Menampilkan ungu untuk beban relatif rendah, hijau kebiruan untuk sedang, kuning untuk tinggi, dan transparansi pada area tanpa dukungan data. Timeout, kategori tidak diketahui, dan lokasi dengan akurasi diketahui >35 m tidak menyumbang warna.
+- Menjaga pemisahan konteks dan mode demo; perubahan classifier aktif ikut memperbarui heatmap. Prediksi RTT tetap terpisah dari permukaan pengamatan.
+- Menggunakan Canvas dan Leaflet lokal tanpa API key atau layanan heatmap berbayar. Kegagalan tile peta jalan tidak menghapus lapisan heatmap.
+- Memperbarui URL tile OpenStreetMap, atribusi, referrer policy, dan izin hostname pada server lokal.
+- Menambahkan tes engine/adapter/integrasi dan `HEATMAP.md`. Hasil pengujian aktual tetap dicatat di `RELEASE_VALIDATION.md`.
+
+## Versi 4.0 - 4 November 2026
+
+- Memindahkan prediksi RTT ke halaman peta; menghapus tab Prediksi ML dan tombol training pengguna.
+- Memuat parameter Ridge dan centroid K-Means yang telah dilatih secara offline. Model awal paket berasal dari data sintetis dan ditandai demikian.
+- Mengganti kategori dashboard berbasis threshold RTT dengan tiga kelompok beban relatif dari K-Means; field kategori edge lama diabaikan untuk keputusan tampilan.
+- Menambahkan kandidat pembaruan otomatis dan pembandingan pada pengukuran baru. Kandidat dipromosikan hanya jika memenuhi margin perbaikan terhadap pembanding; baseline regresi dapat tetap dipakai jika lebih baik.
+- Menyimpan model serta riwayat fitur terbatas di browser, dengan ekspor/pemulihan cadangan, pemisahan demo, dan tanpa penyimpanan koordinat GPS atau kredensial broker pada state pembelajaran.
+- Memisahkan identitas model dari boot perangkat sambil mempertahankan larangan window RTT lintas boot/gap; classifier koneksi digunakan bersama dalam konteks proyek/runtime/broker/interval yang sama.
+- Menyediakan builder untuk mengemas model hasil pengukuran kelompok sebagai bawaan situs. Paket awal belum memuat model lapangan kelompok.
+- Menambahkan pengujian engine, persistensi, seed, serta integrasi; hasil eksekusi aktual dicatat di `RELEASE_VALIDATION.md`.
+- Memperbarui pembahasan AI, dataset card, alur demo, presentasi, panduan upgrade, dan daftar file commit. Catatan versi sebelumnya di bawah merupakan riwayat, bukan petunjuk UI versi 4.
+
+## Versi 3.0 - 4 November 2026
+
+- Menambahkan regresi Ridge untuk RTT berikutnya, pelatihan lokal, pemisahan kronologis, dan evaluasi terhadap dua baseline.
+- Menambahkan menu Prediksi ML dengan data terpisah per perangkat/sesi, demo sintetis, serta ekspor dataset/model/evaluasi.
+- Melengkapi kolom identitas sesi pada ekspor CSV asli, sehingga urutan pengamatan dapat diperiksa.
+- Menyediakan CLI, 480 baris data sintetis, model contoh, dan 24 tes baru untuk engine serta panel ML.
+- Menambahkan pembahasan AI, PDF, panduan percobaan, dataset card, dan bahan presentasi.
+
+## Riwayat versi 2.1: dua opsi edge
 
 Struktur README kini mengikuti contoh PocketGuard yang dilampirkan: pengantar, anggota kelompok, cara kerja, laptop, pilihan Opsi A/Opsi B, uji sistem, dan peta kode. Fungsi tetap SigHeat untuk pengamatan kualitas koneksi.
 

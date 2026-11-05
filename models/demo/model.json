@@ -1,0 +1,243 @@
+{
+  "format": "sigheat-ridge-v1",
+  "schema_version": 1,
+  "window": 6,
+  "features": [
+    "rtt_lag_0",
+    "rtt_lag_1",
+    "rtt_lag_2",
+    "rtt_lag_3",
+    "rtt_lag_4",
+    "rtt_lag_5",
+    "rtt_mean_6",
+    "rtt_std_6",
+    "rtt_slope_6",
+    "success_pct",
+    "latency_std_ms",
+    "accel_rms",
+    "gyro_rms_rad_s",
+    "accel_missing",
+    "gyro_missing",
+    "jitter_missing"
+  ],
+  "centers": [
+    173.61781914893598,
+    173.4156595744679,
+    173.17994326241117,
+    172.91460992907784,
+    172.6268900709218,
+    172.30644326241122,
+    173.01022754137108,
+    6.020120921239319,
+    0.2622751773049651,
+    100,
+    9.742375886524819,
+    0.2107320921985815,
+    0.07823329787234044,
+    0,
+    0,
+    0
+  ],
+  "scales": [
+    67.33690813017125,
+    67.22930771581646,
+    67.12027889741138,
+    67.0114023087098,
+    66.89730699611074,
+    66.77404237951062,
+    66.71638888530413,
+    3.1891652022950856,
+    3.7804662395893196,
+    1,
+    4.671112291853675,
+    0.0847062889361765,
+    0.017655169639812663,
+    1,
+    1,
+    1
+  ],
+  "coefficients": [
+    41.76593761074116,
+    -23.319768228116004,
+    -17.353837164550114,
+    5.886236478606823,
+    12.517286248608507,
+    37.69194107721896,
+    9.56407632314922,
+    -0.027889042812516657,
+    15.635417130611732,
+    0,
+    -0.18778980660608086,
+    -0.13076153056862552,
+    0.45514190848665903,
+    0,
+    0,
+    0
+  ],
+  "intercept": 173.76499645390052,
+  "alpha": 0.1,
+  "group_key": "[\"demo-ml\",\"hp-demo\",\"demo-seeded-240601\",\"demo\",\"wss://example.invalid/mqtt\",5,\"linear\"]",
+  "horizon_s": 5,
+  "provenance": "synthetic",
+  "selected_predictor": "ridge",
+  "trained_through_ms": 1767227035000,
+  "evaluated_through_ms": 1767227995000,
+  "validation": {
+    "ridge": {
+      "n": 90,
+      "mae_ms": 2.3228239815954623,
+      "rmse_ms": 2.8192078912056857
+    },
+    "persistence": {
+      "n": 90,
+      "mae_ms": 3.927266666666665,
+      "rmse_ms": 4.748359155188944
+    },
+    "moving_average": {
+      "n": 90,
+      "mae_ms": 12.387516666666665,
+      "rmse_ms": 14.6682558504247
+    }
+  },
+  "test": {
+    "ridge": {
+      "n": 90,
+      "mae_ms": 2.546468966259866,
+      "rmse_ms": 3.162173674381717
+    },
+    "persistence": {
+      "n": 90,
+      "mae_ms": 3.5102444444444436,
+      "rmse_ms": 4.504058542643018
+    },
+    "moving_average": {
+      "n": 90,
+      "mae_ms": 10.124775925925928,
+      "rmse_ms": 12.525714423761114
+    }
+  },
+  "report": {
+    "schema_version": 1,
+    "algorithm": "standardized_ridge_autoregression",
+    "target": "next_successful_immediate_mqtt_app_rtt_ms",
+    "horizon_s": 5,
+    "group_key": "[\"demo-ml\",\"hp-demo\",\"demo-seeded-240601\",\"demo\",\"wss://example.invalid/mqtt\",5,\"linear\"]",
+    "provenance": "synthetic",
+    "rows": {
+      "total": 480,
+      "train": 288,
+      "validation": 96,
+      "test": 96
+    },
+    "examples": {
+      "train": 282,
+      "validation": 90,
+      "test": 90
+    },
+    "excluded_windows": {
+      "train": 0,
+      "validation": 0,
+      "test": 0
+    },
+    "split_boundaries": {
+      "train": {
+        "raw_start_ms": 1767225600000,
+        "raw_end_ms": 1767227035000,
+        "first_input_ms": 1767225600000,
+        "first_target_ms": 1767225630000,
+        "last_input_ms": 1767227030000,
+        "last_target_ms": 1767227035000
+      },
+      "validation": {
+        "raw_start_ms": 1767227040000,
+        "raw_end_ms": 1767227515000,
+        "first_input_ms": 1767227040000,
+        "first_target_ms": 1767227070000,
+        "last_input_ms": 1767227510000,
+        "last_target_ms": 1767227515000
+      },
+      "test": {
+        "raw_start_ms": 1767227520000,
+        "raw_end_ms": 1767227995000,
+        "first_input_ms": 1767227520000,
+        "first_target_ms": 1767227550000,
+        "last_input_ms": 1767227990000,
+        "last_target_ms": 1767227995000
+      }
+    },
+    "features": [
+      "rtt_lag_0",
+      "rtt_lag_1",
+      "rtt_lag_2",
+      "rtt_lag_3",
+      "rtt_lag_4",
+      "rtt_lag_5",
+      "rtt_mean_6",
+      "rtt_std_6",
+      "rtt_slope_6",
+      "success_pct",
+      "latency_std_ms",
+      "accel_rms",
+      "gyro_rms_rad_s",
+      "accel_missing",
+      "gyro_missing",
+      "jitter_missing"
+    ],
+    "alpha": 0.1,
+    "alpha_validation_mae": [
+      {
+        "alpha": 0.1,
+        "mae_ms": 2.3228239815954623
+      },
+      {
+        "alpha": 1,
+        "mae_ms": 2.7061424693829412
+      },
+      {
+        "alpha": 10,
+        "mae_ms": 3.2502549781768013
+      },
+      {
+        "alpha": 100,
+        "mae_ms": 4.652876419256563
+      }
+    ],
+    "validation": {
+      "ridge": {
+        "n": 90,
+        "mae_ms": 2.3228239815954623,
+        "rmse_ms": 2.8192078912056857
+      },
+      "persistence": {
+        "n": 90,
+        "mae_ms": 3.927266666666665,
+        "rmse_ms": 4.748359155188944
+      },
+      "moving_average": {
+        "n": 90,
+        "mae_ms": 12.387516666666665,
+        "rmse_ms": 14.6682558504247
+      }
+    },
+    "test": {
+      "ridge": {
+        "n": 90,
+        "mae_ms": 2.546468966259866,
+        "rmse_ms": 3.162173674381717
+      },
+      "persistence": {
+        "n": 90,
+        "mae_ms": 3.5102444444444436,
+        "rmse_ms": 4.504058542643018
+      },
+      "moving_average": {
+        "n": 90,
+        "mae_ms": 10.124775925925928,
+        "rmse_ms": 12.525714423761114
+      }
+    },
+    "selected_predictor": "ridge",
+    "selection_rule": "Gunakan ridge hanya jika MAE validasi minimal 5% lebih rendah daripada kedua baseline; test tidak memilih model.",
+    "note": "Target adalah telemetri berikutnya yang langsung berurutan dan berhasil, bukan janji waktu tepat atau prediksi timeout. Model tetap dilatih pada 60% awal; 20% akhir hanya untuk evaluasi. Data sintetis tidak membuktikan kinerja jaringan nyata."
+  }
+}

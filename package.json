@@ -1,9 +1,18 @@
 {
   "name": "sigheat",
-  "version": "2.1.0",
+  "version": "4.1.0",
   "private": true,
-  "description": "SigHeat MQTT sensor monitoring with Browser and Termux Android edge options",
+  "description": "SigHeat MQTT monitoring with automatic persistent learning and a free local geographic heatmap",
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
-    "test": "node --test tests/*.cjs"
+    "test": "node --test tests/*.cjs",
+    "test:python": "python -m unittest discover -s tests -p test_*.py",
+    "ml:demo": "node scripts/generate-ml-demo.cjs",
+    "ml:train": "node scripts/train-ml.cjs",
+    "ml:build-default": "node scripts/build-default-model.cjs",
+    "ml:build-clusters": "node scripts/build-cluster-default.cjs",
+    "ml:build-seed": "node scripts/build-learning-seed.cjs"
   }
 }

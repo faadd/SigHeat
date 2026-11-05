@@ -1,5 +1,7 @@
 # Protokol SigHeat v2: browser dan Termux
 
+**Catatan versi 4:** dokumen ini mempertahankan schema v2 dan perhitungan edge untuk kompatibilitas. Aturan kategori heuristik di bagian 5 menjelaskan metadata lama, bukan keputusan warna dashboard versi 4. Dashboard kini memakai K-Means; penjelasan model dan adaptasi ada pada [AI_ML.md](AI_ML.md).
+
 Versi ini menyediakan dua jalur edge: browser HP (`source: browser`) dan Termux + Python Android (`source: termux`). Keduanya memakai kontrak v2 dan mengukur roundtrip aplikasi melalui broker WSS. Payload v1 RSSI/RSRP tidak digunakan. Contoh lokal berlabel simulasi tidak menjadi bukti lapangan.
 
 | Jalur | Cara mulai | Sensor | Konfigurasi |
@@ -154,6 +156,8 @@ success_pct = n_berhasil / n_percobaan_selesai × 100
 
 Std bernilai `null` bila kurang dari dua probe berhasil; mean bernilai `null` bila tidak ada keberhasilan. Interval merupakan target: saat probe membutuhkan waktu lebih lama, sampling berikutnya menunggu penyelesaian probe. Timeout menambah jumlah percobaan gagal tetapi tidak diubah menjadi angka 5.000 ms dalam mean. Karena mean dihitung dari keberhasilan, selalu baca mean bersama success%, jumlah percobaan, dan `probe_ok` terbaru. Satu nilai lama yang baik tidak boleh menyembunyikan timeout terbaru.
 
+Aturan berikut tetap menjelaskan field kompatibilitas `connection_quality` pada edge. Dashboard versi 4 mengabaikan field tersebut untuk kategori tampilan.
+
 | Kategori heuristik proyek | Syarat                                                                                             |
 | ------------------------- | -------------------------------------------------------------------------------------------------- |
 | Baik                      | Mean ≤ 150 ms dan keberhasilan ≥ 90%                                                               |
@@ -161,7 +165,7 @@ Std bernilai `null` bila kurang dari dua probe berhasil; mean bernilai `null` bi
 | Perlu diperiksa           | Selain kondisi di atas; kegagalan probe terbaru ditandai buruk meskipun mean sebelumnya masih baik |
 | Belum tersedia            | Belum ada dasar pengukuran yang valid                                                              |
 
-Kategori bukan standar layanan operator dan belum dikalibrasi untuk seluruh browser/broker. Peta mengelompokkan titik secara kasar dalam grid 25 meter dan menampilkan pusat/batas sel. Sampel dengan estimasi akurasi lokasi lebih buruk dari 50 meter tidak masuk grid 25 meter. Grid dipisahkan menurut sumber dan broker; ini agregasi lokasi sampel, bukan interpolasi sinyal atau jaminan ketelitian GPS.
+Kategori heuristik lama bukan standar layanan operator dan belum dikalibrasi untuk seluruh browser/broker. Kategori K-Means versi 4 juga bersifat relatif terhadap model; timeout atau profil tidak lengkap tetap tidak diklasifikasikan. Peta mengelompokkan titik secara kasar dalam grid 25 meter dan menampilkan pusat/batas sel. Sampel dengan estimasi akurasi lokasi lebih buruk dari 50 meter tidak masuk grid 25 meter. Pada dashboard versi 4, grid merangkum kelas ML terbanyak per sel; hasil seri tidak diklasifikasikan. Grid gabungan dinonaktifkan bila beberapa konteks proyek/sumber/broker/interval tercampur. Ini agregasi lokasi sampel, bukan interpolasi sinyal atau jaminan ketelitian GPS.
 
 ## 6. Command dan ACK
 
@@ -220,4 +224,4 @@ Referensi primer:
 - [Termux:API resmi](https://github.com/termux/termux-api)
 - [HiveMQ public broker](https://www.mqtt-dashboard.com/)
 
-Format SigHeat, window, dan ambang kategori adalah keputusan desain proyek, bukan standar dari referensi tersebut.
+Format SigHeat, window, dan ambang kategori edge lama adalah keputusan desain proyek, bukan standar dari referensi tersebut. Ambang kategori lama tidak dipakai oleh dashboard versi 4.

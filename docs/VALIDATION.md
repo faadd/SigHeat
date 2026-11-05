@@ -1,5 +1,7 @@
 # Validasi SigHeat v2.1: dua opsi edge
 
+**Arsip versi 2.1:** angka tes dan pemeriksaan tampilan di bawah adalah riwayat versi tersebut, bukan hasil pengujian versi 4. Untuk kode dan UI pembelajaran otomatis terbaru, lihat [RELEASE_VALIDATION.md](RELEASE_VALIDATION.md).
+
 ## Hasil pemeriksaan, 26 Oktober 2026
 
 **33 tes JavaScript dan 26 tes Python lulus** pada Node.js 24.22.1 dan Python 3.12.14, dengan paho-mqtt 2.1.0 dan python-dotenv 1.1.1. Pemeriksaan menggunakan data sintetis dan broker tiruan, kecuali tes server HTTP lokal dan konfigurasi objek Paho yang sebenarnya. Belum ada uji dua HP fisik atau broker cloud kelompok.

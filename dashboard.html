@@ -125,14 +125,32 @@
               </div>
             </div>
             <div class="metric">
-              <div class="metric-label">Sampel perlu dicek</div>
+              <div class="metric-label">Beban relatif tinggi</div>
               <div class="metric-value" id="metric-weak">
                 0<span>sampel</span>
               </div>
-              <div class="metric-note">Menurut ambang proyek</div>
+              <div class="metric-note">Kelompok hasil KMeans</div>
             </div>
           </section>
           <div class="view" id="view-map">
+            <section class="panel learning-summary" aria-labelledby="learning-heading">
+              <div class="panel-head">
+                <div><h2 id="learning-heading">Pembelajaran otomatis</h2>
+                <p id="ml-status" role="status" aria-live="polite">Model awal dimuat otomatis. Hubungkan HP untuk mulai memprediksi.</p></div>
+                <span class="chip amber" id="ml-provenance">MODEL AWAL SINTETIS</span>
+              </div>
+              <div class="ml-body">
+                <p class="small muted" id="ml-device-label">Pilih perangkat pada peta atau tabel.</p>
+                <div class="ml-stat-grid">
+                  <div class="ml-stat"><span id="ml-observed-label">RTT terakhir terukur</span><strong id="ml-observed">–</strong><small id="ml-observed-note">Probe aplikasi MQTT</small></div>
+                  <div class="ml-stat ml-prediction"><span>Prediksi RTT berikutnya</span><strong id="ml-prediction">–</strong><small id="ml-prediction-note">Menunggu enam pengukuran berurutan</small></div>
+                  <div class="ml-stat"><span>Kelompok koneksi</span><strong id="ml-quality">Belum ada data</strong><small id="ml-quality-note">KMeans tanpa label threshold</small></div>
+                </div>
+                <p id="ml-warning" class="ml-warning" hidden></p>
+                <p class="small muted" id="ml-context-note">Kategori bersifat relatif terhadap model. Prediksi bukan hasil ukur dan bukan kekuatan sinyal radio.</p>
+                <p class="small muted" id="ml-storage-note">Memeriksa penyimpanan lokal…</p>
+              </div>
+            </section>
             <div class="map-layout">
               <section class="panel">
                 <div class="panel-head">
@@ -147,11 +165,12 @@
                   </button>
                 </div>
                 <div class="map-tools">
-                  <div class="segmented" aria-label="Tampilan peta">
-                    <button class="active" id="map-points" type="button">
+                  <div class="segmented" role="group" aria-label="Tampilan peta">
+                    <button class="active" id="map-points" type="button" aria-pressed="true">
                       Titik</button
-                    ><button id="map-grid" type="button">Grid 25 m</button
-                    ><button id="map-roads" type="button">Peta jalan</button>
+                    ><button id="map-grid" type="button" aria-pressed="false">Grid 25 m</button
+                    ><button id="map-roads" type="button" aria-pressed="false">Peta jalan</button>
+                    <button id="map-heatmap" type="button" aria-pressed="false">Mode Heatmap</button>
                   </div>
                   <span id="map-view-note" class="small muted"
                     >Plot koordinat · tanpa peta dasar</span
@@ -167,17 +186,29 @@
                     Belum ada pengukuran
                   </div>
                 </div>
-                <div class="map-legend">
+                <div class="map-legend" id="map-standard-legend">
                   <span class="legend-item"
-                    ><i class="dot"></i>Responsif ≤ 150 ms · kembali ≥ 90%</span
+                    ><i class="dot"></i>Beban relatif rendah</span
                   ><span class="legend-item"
-                    ><i class="dot medium"></i>Cukup ≤ 500 ms · kembali ≥
-                    70%</span
+                    ><i class="dot medium"></i>Beban relatif sedang</span
                   ><span class="legend-item"
-                    ><i class="dot weak"></i>Perlu dicek</span
+                    ><i class="dot weak"></i>Beban relatif tinggi</span
                   ><span class="map-fineprint"
-                    >Ambang proyek; bukan standar jaringan.</span
+                    ><span class="legend-item"><i class="dot unknown"></i>Tidak terklasifikasi</span> Kelompok dipelajari dari data; bukan standar jaringan.</span
                   >
+                </div>
+                <div class="heatmap-legend" id="heatmap-legend" hidden aria-labelledby="heatmap-legend-title">
+                  <div class="heatmap-legend-head"><strong id="heatmap-legend-title">Beban koneksi relatif · hasil ML</strong><span>Radius penghalusan 35 m</span></div>
+                  <div class="heatmap-ramp" aria-hidden="true"></div>
+                  <div class="heatmap-keys">
+                    <span><i class="heat-key heat-low" aria-hidden="true"></i><b>Ungu</b> · rendah</span>
+                    <span><i class="heat-key heat-mid" aria-hidden="true"></i><b>Hijau kebiruan</b> · sedang</span>
+                    <span><i class="heat-key heat-high" aria-hidden="true"></i><b>Kuning</b> · tinggi</span>
+                  </div>
+                  <p>Warna peralihan merangkum kelompok ML di sekitar titik. Area tanpa warna belum didukung pengamatan; bukan berarti koneksinya baik.</p>
+                  <p><i class="heat-key heat-unknown" aria-hidden="true"></i> Titik abu-abu: timeout, belum terklasifikasi, atau lokasi terlalu tidak pasti. Tidak ikut membentuk warna area.</p>
+                  <p id="heatmap-status" class="heatmap-status" role="status" aria-live="polite">Aktifkan berbagi lokasi pada HP untuk melihat heatmap.</p>
+                  <p class="heatmap-note">Ini penghalusan pengamatan RTT, bukan jangkauan Wi-Fi atau prediksi di lokasi yang belum diukur. Tidak memerlukan API key atau layanan berbayar.</p>
                 </div>
               </section>
               <aside class="panel detail-panel">
@@ -253,7 +284,7 @@
                       <tr>
                         <th>Perangkat</th>
                         <th>Rata-rata latensi</th>
-                        <th>Kualitas</th>
+                        <th>Kelompok ML</th>
                         <th>Status</th>
                       </tr>
                     </thead>
@@ -273,10 +304,33 @@
                   </p>
                 </div>
                 <div class="insight-foot">
-                  ⓘ Ambang kualitas merupakan aturan proyek.
+                  ⓘ KMeans mempelajari kelompok relatif dari RTT, jitter, dan keberhasilan probe.
                 </div>
               </section>
             </div>
+            <details class="panel ml-how" id="learning-details">
+              <summary>Rincian pembelajaran &amp; cadangan</summary>
+              <div class="ml-body">
+                <p id="ml-data-note">Data baru diproses otomatis; pengguna tidak perlu menekan tombol training.</p>
+                <p id="ml-candidate-note">Kandidat model diperiksa pada pengukuran baru sebelum dipakai.</p>
+                <p class="small muted">Ridge memprediksi RTT berikutnya. KMeans mengelompokkan beban koneksi tanpa label buatan 150/500 ms. Model awal berasal dari data sintetis dan belum tervalidasi pada jaringan ini. Data contoh tidak masuk pembelajaran nyata.</p>
+                <details class="ml-evidence"><summary>Bukti evaluasi model aktif</summary><pre id="ml-evaluation">Belum ada evaluasi pengukuran nyata.</pre></details>
+                <div class="ml-downloads">
+                  <button class="btn" id="ml-export-data" disabled>Unduh dataset perangkat (CSV)</button>
+                  <button class="btn" id="ml-export-backup">Unduh cadangan pembelajaran</button>
+                </div>
+                <label class="ml-import-label" for="ml-import-backup">Pulihkan cadangan pembelajaran (JSON)</label>
+                <input id="ml-import-backup" type="file" accept="application/json,.json" aria-describedby="ml-backup-note" />
+                <p id="ml-backup-note" class="small muted">Pemulihan mengganti pembelajaran lokal dari cadangan yang valid. Unduh cadangan saat ini sebelum memulihkan. Tidak ada GPS atau kredensial broker dalam cadangan.</p>
+                <button class="btn" id="ml-clear">Hapus pembelajaran tersimpan</button>
+                <div id="ml-clear-confirm" class="ml-reset-confirm" hidden>
+                  <p>Hapus model adaptif dan riwayat pembelajaran lokal? Model awal tetap tersedia. Data yang belum dicadangkan tidak dapat dipulihkan.</p>
+                  <button class="btn" id="ml-clear-cancel">Batal</button>
+                  <button class="btn" id="ml-clear-yes">Ya, hapus pembelajaran</button>
+                </div>
+                <p id="ml-action-status" role="status" aria-live="polite"></p>
+              </div>
+            </details>
           </div>
           <section class="view panel" id="view-devices" hidden>
             <div class="panel-head">
@@ -493,6 +547,14 @@
     <script src="assets/vendor/paho-mqtt.min.js"></script>
     <script src="assets/core.js"></script>
     <script src="assets/edge.js"></script>
+    <script src="assets/ml.js"></script>
+    <script src="assets/default-model.js"></script>
+    <script src="assets/clusters.js"></script>
+    <script src="assets/learning.js"></script>
+    <script src="assets/learning-seed.js"></script>
+    <script src="assets/ml-ui.js"></script>
+    <script src="assets/heatmap.js"></script>
+    <script src="assets/heatmap-layer.js"></script>
     <script src="assets/app.js"></script>
   </body>
 </html>

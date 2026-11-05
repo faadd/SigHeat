@@ -2,14 +2,16 @@
 
 Acuan: PDF _Praktek Multicommunication 2 Arah dan Multisensor_, halaman 14–15. Halaman 23 menunjukkan pembacaan sensor melalui browser iPhone Safari atau Android Chrome; Termux bukan kewajiban tugas.
 
+**Tambahan versi 4:** prosedur IoT di sini tetap berlaku. Untuk pembelajaran otomatis, asal model, dan evaluasi AI, gunakan [AI_DEMO_DAN_PENGUJIAN.md](AI_DEMO_DAN_PENGUJIAN.md) serta [AI_PRESENTASI.md](AI_PRESENTASI.md). Permintaan tambahan penggantian threshold berasal dari percakapan kelompok; dokumen ini tidak menganggap percakapan tersebut sebagai verifikasi langsung instruksi dosen.
+
 ## Tujuh ketentuan tugas
 
 | No. | Ketentuan pada PDF/screenshot | Penerapan SigHeat | Bukti yang perlu dikumpulkan |
 |---:|---|---|---|
-| 1 | Kelompok 3–4 orang | Tiga placeholder anggota pada README; tambah anggota keempat bila perlu | Nama, NIM, kontribusi yang benar |
+| 1 | Kelompok 3–4 orang | Tiga anggota tercantum pada README; periksa identitas sebelum dikumpulkan | Nama, NIM, kontribusi yang benar |
 | 2 | Minimal dua edge dan dua sensor | Dua HP fisik, accelerometer + gyroscope; pilih browser atau Termux | Video dua HP dan dua jenis sensor valid pada masing-masing HP |
 | 3 | Minimal dua jenis processing | RMS percepatan dan integrasi rotasi; statistik probe sebagai tambahan | Kode, rumus, contoh perhitungan dari data |
-| 4 | Algoritma AI atau algoritma lain | Pengolahan numerik dan aturan kategori koneksi | Jelaskan sebagai algoritma, tanpa klaim AI terlatih |
+| 4 | Algoritma AI atau algoritma lain | RMS/integrasi serta Ridge dan K-Means pada versi 4 | Bedakan model awal sintetis, pembelajaran pengukuran, dan bukti evaluasinya |
 | 5 | Minimal satu protokol terhubung cloud | MQTT over WSS pada kedua opsi | Topic, telemetry, probe, dan broker cloud |
 | 6 | Dashboard opsional; jika ada, satu jaringan pengguna | Dashboard laptop pada Wi-Fi/hotspot yang sama dengan dua HP | IP lokal dan skema jaringan; edge browser tetap HTTPS |
 | 7 | Ide berbeda dari kelompok lain | SigHeat memetakan kualitas koneksi aplikasi | Kelompok memeriksa sheet kelas; keunikan belum dijamin |
@@ -26,7 +28,7 @@ Jika browser hanya mengukur koneksi karena sensor tidak tersedia, bagian koneksi
 | -------------------- | ----: | ----------------------------------------------------------------- |
 | Ide/orisinalitas     |   20% | Masalah, pengguna, pembatasan kualitas aplikasi versus daya radio |
 | Arsitektur           |   15% | Dua HP, dua sensor, jaringan bersama, broker cloud                |
-| Processing/algoritma |   20% | RMS, integrasi rotasi, statistik probe, aturan kategori           |
+| Processing/algoritma |   20% | RMS, integrasi rotasi, statistik probe, Ridge/K-Means           |
 | Komunikasi cloud     |   15% | WSS, topic, telemetry, command, ACK                               |
 | Pengujian/demo       |   15% | Data nyata, skenario gagal, dua arah, rekaman                     |
 | Dokumentasi          |   15% | README, PPT, sumber, GitHub, video                                |
@@ -122,7 +124,8 @@ Lokasi CSV dan video bukti:
 4. Gerakkan/putar satu HP; bandingkan hasil olahan dengan HP lainnya.
 5. Kirim perintah ke satu HP; tunjukkan ACK dan telemetry sesudahnya.
 6. Tunjukkan efek tab tersembunyi atau koneksi terputus, lalu mulai kembali.
-7. Tampilkan hasil nyata, keterbatasan, dan tautan GitHub/video.
+7. Tunjukkan ringkasan prediksi/kategori di peta tanpa tombol training; sebutkan asal model aktif dan batasnya.
+8. Tampilkan hasil nyata, keterbatasan, dan tautan GitHub/video.
 
 ## Pembagian kerja
 

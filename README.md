@@ -4,6 +4,40 @@
 
 SigHeat mengukur waktu perjalanan pesan aplikasi **HP → broker → HP**, variasi latency, dan keberhasilan probe. Hasilnya bukan kekuatan radio dBm, ping ICMP, atau kecepatan unduh. Lokasi opsional membantu menempatkan pengamatan pada peta.
 
+## Versi 4.1: Mode Heatmap
+
+Pilihan **Mode Heatmap** berada di samping **Peta jalan**. Area warnanya mengikuti sebaran pengamatan: **ungu = beban relatif rendah**, **hijau kebiruan = sedang**, dan **kuning = tinggi**. Area tanpa warna belum didukung data; titik abu-abu tidak ikut membentuk warna. Legenda lengkap tampil di bawah peta.
+
+Heatmap memakai kategori K-Means aktif yang dihaluskan dengan radius 35 m. Perhitungan berjalan lokal memakai Canvas dan Leaflet, **tanpa API key atau layanan berbayar**. Pengamatan berulang di lokasi yang sama tidak dijumlahkan menjadi warna yang makin panas. Ini penghalusan pengamatan RTT, bukan peta jangkauan Wi-Fi atau prediksi pada tempat yang belum diukur.
+
+Untuk mencoba, aktifkan **Contoh lokal**, lalu tekan **Mode Heatmap**. Untuk data nyata, aktifkan berbagi lokasi pada HP. Peta jalan OpenStreetMap memerlukan jaringan; jika tile gagal dimuat, lapisan heatmap tetap dapat digunakan pada latar polos. Lihat [panduan Heatmap](docs/HEATMAP.md) untuk arti warna, syarat data, batas akurasi, dan cara kerja.
+
+## Versi 4.0: model bawaan dan pembelajaran otomatis
+
+Versi ini menggabungkan **Ridge Regression untuk prediksi RTT berikutnya** dan **K-Means untuk kategori beban koneksi relatif**. Kategori dashboard memakai centroid yang dipelajari, menggantikan batas RTT 150/500 ms. Model awal dimuat otomatis; pengguna tidak perlu membuka tab ML atau menekan tombol training.
+
+Jalankan `python server.py --port 8000`, lalu buka `http://localhost:8000/dashboard.html`. Hubungkan kedua HP seperti panduan di bawah. Ringkasan ML berada di halaman peta. Setelah enam RTT terbaru valid, model dapat memprediksi; pengumpulan lebih panjang dipakai untuk menyesuaikan model secara otomatis. Kandidat baru diperiksa pada pengukuran berikutnya sebelum menggantikan model aktif.
+
+**Model bawaan berasal dari data sintetis**, karena arsip sumber belum berisi histori jaringan nyata kelompok. Label asal model tetap ditampilkan. Hasil sintetis tidak membuktikan akurasi Wi-Fi kelompok; penggunaan berulang juga tidak menjamin setiap model baru lebih baik.
+
+Model dan riwayat fitur disimpan secara terbatas pada browser/origin yang sama, tanpa koordinat GPS atau password. Refresh tidak mengharuskan training manual ulang. Boot HP baru tetap memerlukan riwayat RTT baru; jendela tidak menyambungkan dua sesi. Cadangan pembelajaran JSON dapat diunduh dan dipulihkan; data demo tetap terpisah dari model pengukuran nyata.
+
+| Panduan | Isi |
+|---|---|
+| [Mode Heatmap](docs/HEATMAP.md) | Arti warna, pemetaan pengamatan, penggunaan gratis, dan batas interpretasi |
+| [Pembahasan AI/ML](docs/AI_ML.md) | Ridge, K-Means, model awal, adaptasi otomatis, evaluasi, dan batasan |
+| [Pembahasan PDF](docs/Pembahasan_SigHeat_AI_v4.pdf) | Penjelasan siap dibaca dan alur demonstrasi |
+| [Demo dan pengujian](docs/AI_DEMO_DAN_PENGUJIAN.md) | Demo/live, penyimpanan, backup, eksperimen lapangan |
+| [Dataset card](docs/DATASET_CARD.md) | Asal data, fitur, konteks, penyaringan, dan privasi |
+| [Bahan presentasi](docs/AI_PRESENTASI.md) | Susunan slide dan narasi sesuai fitur aktual |
+| [Upgrade versi 4](docs/UPGRADE_V4.md) | Perbedaan dari versi 3, migrasi, dan batas kompatibilitas |
+| [File untuk GitHub](docs/FILES_TO_COMMIT.md) | Penempatan file dan daftar perubahan |
+| [Pemeriksaan paket](docs/RELEASE_VALIDATION.md) | Hasil tes aktual dan batas verifikasi |
+
+Hasil belajar pengukuran kelompok juga dapat dijadikan bawaan situs melalui `node scripts/build-learning-seed.cjs --input sigheat-pembelajaran.json`. Persiapan ini dilakukan sebelum demo; langkah lengkap ada pada panduan upgrade. Browser baru akan memuat konteks model yang cocok secara otomatis.
+
+Model bawaan sintetis dapat dibuat ulang melalui `node scripts/build-default-model.cjs` dan `node scripts/build-cluster-default.cjs`. CLI latihan tetap tersedia untuk eksperimen; opsi `--context` mendukung beberapa boot yang cocok tanpa window lintas boot. CLI bukan alur penggunaan dashboard versi 4. Kode awal berasal dari ZIP yang diberikan; paket ini belum dipublikasikan ke GitHub kelompok.
+
 ## Anggota Kelompok
 
 1. [Addia Fa'adihilah Mahendra Nugraha] — [24060125120006]
@@ -252,9 +286,11 @@ Sumber browser dan Termux dapat berada dalam satu proyek, tetapi untuk perbandin
 |---|---|
 | `index.html`, `assets/edge.js` | Edge browser, izin sensor, probe, dan command |
 | `termux_edge.py` | Edge Android melalui Termux:API dan MQTT WSS |
-| `assets/core.js` | Validasi protokol, kategori, dan agregasi lokasi |
+| `assets/core.js` | Validasi protokol, metadata kompatibilitas, dan agregasi lokasi |
+| `assets/ml.js`, `assets/clusters.js` | Regresi Ridge dan kategori koneksi dari K-Means |
+| `assets/learning.js`, `assets/ml-ui.js` | Pembelajaran otomatis, persistensi, dan ringkasan di peta |
 | `dashboard.html`, `assets/app.js` | Pemantauan, kontrol, peta/tabel, ekspor |
 | `server.py` | Server dashboard lokal opsional |
 | `conf/config.xml` | Konfigurasi WebSocket listener HiveMQ CE (Docker) |
 
-Dokumentasi: [Protokol dan algoritma](docs/PROTOCOL.md) · [Rubrik/demo](docs/RUBRIC_AND_DEMO.md) · [Validasi](docs/VALIDATION.md) · [Brief PPT](docs/PRESENTATION_BRIEF.md) · [Perubahan](docs/CHANGELOG.md).
+Dokumentasi: [Protokol dan algoritma](docs/PROTOCOL.md) · [Rubrik/demo](docs/RUBRIC_AND_DEMO.md) · [Validasi versi 4](docs/RELEASE_VALIDATION.md) · [Brief IoT](docs/PRESENTATION_BRIEF.md) · [Presentasi AI](docs/AI_PRESENTASI.md) · [Perubahan](docs/CHANGELOG.md).

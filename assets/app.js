@@ -20,6 +20,10 @@
     pending: new Map(),
     map: null,
     markers: null,
+    heatmapLayer: null,
+    heatmapInfo: null,
+    heatmapRender: null,
+    tilesFailed: false,
     mapMode: "points",
     mapFitted: false,
     edge: null,
@@ -31,10 +35,10 @@
     csvCount: 0,
   };
   const labels = {
-      good: "Responsif",
-      fair: "Cukup",
-      poor: "Perlu dicek",
-      unknown: "Belum terbaca",
+      good: "Beban relatif rendah",
+      fair: "Beban relatif sedang",
+      poor: "Beban relatif tinggi",
+      unknown: "Tidak terklasifikasi",
     },
     colors = {
       good: "#28765a",
@@ -136,14 +140,31 @@
   function mixedSources() {
     return new Set(visiblePoints().map((p) => p.source)).size > 1;
   }
+  function qualityContext(p) {
+    return JSON.stringify([p.project_id || "", p.source, p.broker_endpoint, p.interval_s]);
+  }
+  function mixedContexts() {
+    return new Set(visiblePoints().map(qualityContext)).size > 1;
+  }
+  function learnedClassification(p) {
+    return window.SigHeatMLPanel?.classify(p) || {
+      quality: "unknown", label: labels.unknown, reason: "Model belum tersedia.",
+    };
+  }
+  function refreshClassifications() {
+    for (const p of new Set([...state.points, ...state.devices.values()])) {
+      const result = learnedClassification(p);
+      p.quality = Object.prototype.hasOwnProperty.call(labels, result.quality) ? result.quality : "unknown";
+      p.ml_classification = result;
+    }
+  }
   function qualified(p) {
+    const value = { ...p, project_id: p.project_id || state.project };
+    const result = learnedClassification(value);
     return {
-      ...p,
-      quality:
-        p.connection_quality ||
-        (p.probe_ok === false
-          ? "poor"
-          : C.quality(p.latency_mean_ms, p.success_pct)),
+      ...value,
+      quality: Object.prototype.hasOwnProperty.call(labels, result.quality) ? result.quality : "unknown",
+      ml_classification: result,
       received_at_ms: Date.now(),
     };
   }
@@ -169,6 +190,7 @@
     state.pending.clear();
   }
   function clearData() {
+    window.SigHeatMLPanel?.reset();
     state.devices.clear();
     state.statuses.clear();
     state.points = [];
@@ -180,6 +202,7 @@
   }
   function render() {
     if (!dashboard) return;
+    refreshClassifications();
     const selected = state.devices.get(state.selected);
     if (
       !selected ||
@@ -188,13 +211,23 @@
         selected.source !== state.sourceFilter)
     )
       state.selected = visibleDevices()[0]?.device_id || null;
-    if (mixedSources() && state.mapMode === "grid") state.mapMode = "points";
+    if (mixedContexts() && ["grid", "heatmap"].includes(state.mapMode)) changeMapMode("points");
     renderMode();
     renderMetrics();
     renderDevices();
     renderDetail();
     renderMap();
     renderInsight();
+    const active = state.devices.get(state.selected);
+    window.SigHeatMLPanel?.updateSelection({
+      selected: state.selected,
+      row: active || null,
+      contextCount: new Set(visiblePoints().map(qualityContext)).size,
+      connected: state.connected,
+      demo: state.demo,
+      stale: !active || stale(active),
+      staleDeviceIds: [...state.devices.values()].filter((p) => stale(p)).map((p) => p.device_id),
+    });
   }
   function renderMode() {
     if ($("source-filter")) {
@@ -210,14 +243,22 @@
       state.demo
         ? "Contoh lokal tidak berasal dari Browser atau Termux."
         : mixedSources()
-          ? "Rerata dan grid gabungan dinonaktifkan. Pilih satu sumber untuk membandingkan hasil."
+          ? "Rerata, grid, dan heatmap gabungan dinonaktifkan. Pilih satu sumber untuk membandingkan hasil."
+          : mixedContexts()
+            ? "Beberapa interval atau konteks model ditampilkan. Kelompok relatif tidak langsung sebanding; grid dan heatmap gabungan dinonaktifkan."
           : "Bandingkan perangkat dengan opsi, broker, dan kondisi yang sama.",
     );
     if ($("map-grid")) {
-      $("map-grid").disabled = mixedSources();
-      $("map-grid").title = mixedSources()
-        ? "Pilih satu sumber sebelum melihat grid."
-        : "Grid sampel terukur per sumber.";
+      $("map-grid").disabled = mixedContexts();
+      $("map-grid").title = mixedContexts()
+        ? "Grid memerlukan satu konteks sumber, broker, proyek, dan interval."
+        : "Grid kelas ML mayoritas pada satu konteks model.";
+    }
+    if ($("map-heatmap")) {
+      $("map-heatmap").disabled = mixedContexts() || !window.SigHeatHeatmap || !window.SigHeatHeatLayer;
+      $("map-heatmap").title = mixedContexts()
+        ? "Heatmap memerlukan satu konteks sumber, broker, proyek, dan interval."
+        : "Area pengamatan yang dihaluskan lokal; tanpa API key atau layanan berbayar.";
     }
     text(
       "mode-chip",
@@ -425,9 +466,7 @@
   }
   function selectDevice(id) {
     state.selected = id;
-    renderDevices();
-    renderDetail();
-    renderMap();
+    render();
   }
   function renderDetail() {
     const p = state.devices.get(state.selected);
@@ -450,7 +489,7 @@
     text(
       "detail-signal",
       p
-        ? "Latensi aplikasi MQTT · " + labels[p.quality]
+        ? (p.probe_ok ? "RTT aplikasi · " + labels[p.quality] : "Probe timeout · RTT belum diketahui")
         : "Belum ada sampel dari perangkat",
     );
     text("detail-source", p ? sourceLabel(p.source) : "–");
@@ -526,7 +565,7 @@
     text(
       "insight-title",
       valid.length
-        ? `${poor.length} dari ${valid.length} sampel perlu ditinjau.`
+        ? `${poor.length} dari ${valid.length} sampel pada kelompok beban relatif tinggi.`
         : "Mulai pengukuran bersama.",
     );
     text(
@@ -534,7 +573,7 @@
       state.demo
         ? "Contoh ini menunjukkan latensi lebih tinggi pada HP Area B. Ini bukan hasil sensor atau kondisi jaringan nyata."
         : valid.length
-          ? "Ulangi saat HP diam, dengan opsi Browser atau Termux yang sama. Perbedaan runtime dapat memengaruhi latensi aplikasi."
+          ? "Kelas KMeans berasal dari pola RTT, jitter, dan keberhasilan probe. Kelompok tinggi bersifat relatif terhadap model; tidak memastikan penyebab gangguan."
           : "Buka kontributor pada dua HP dengan ID berbeda. Gunakan broker dan Project ID yang sama.",
     );
   }
@@ -572,77 +611,121 @@
     text("page-subtitle", labels[view][2]);
     if (view === "map") setTimeout(() => state.map?.invalidateSize(), 50);
   }
+  function heatmapStatus() {
+    const info = state.heatmapInfo, drawn = state.heatmapRender;
+    if (state.mapMode !== "heatmap") return;
+    const messages = [];
+    if (state.tilesFailed) messages.push("Peta jalan tidak tersedia; heatmap tetap berfungsi pada latar koordinat.");
+    if (!info?.binCount) messages.push(info?.reason || "Belum ada data berlokasi. Aktifkan berbagi lokasi pada HP atau jalankan Contoh lokal.");
+    else messages.push(`${info.knownCount} pengamatan diringkas menjadi ${info.binCount} lokasi ±2 m; radius penghalusan 35 m.`);
+    if (info?.unknownCount) messages.push(`${info.unknownCount} pengamatan belum terklasifikasi/timeout tidak diwarnai.`);
+    if (info?.uncertainCount) messages.push(`${info.uncertainCount} pengamatan dengan ketidakpastian lokasi >35 m tidak diwarnai.`);
+    if (info?.unknownAccuracyCount) messages.push(`Akurasi GPS belum diketahui pada ${info.unknownAccuracyCount} pengamatan.`);
+    if (drawn?.error) messages.push("Heatmap belum dapat digambar: " + drawn.error);
+    else if (drawn?.zoomTooWide && info?.binCount) messages.push("Perbesar peta untuk melihat area 35 m.");
+    else if (drawn?.coveredCells === 0 && info?.binCount) messages.push("Area berwarna di luar tampilan ini; pilih Semua titik.");
+    const provenance = new Set(visiblePoints().map((p) => p.ml_classification?.provenance));
+    if (state.demo) messages.push("CONTOH SINTETIS: bukan pengukuran jaringan nyata.");
+    else if (provenance.has("synthetic")) messages.push("Kategori masih memakai model awal sintetis; belum tervalidasi lapangan.");
+    text("heatmap-status", messages.join(" "));
+  }
   function initRoadMap() {
     if (!window.L) {
       state.mapMode = "points";
-      toast(
-        "Pustaka peta belum tersedia. Plot koordinat tetap dapat digunakan.",
-      );
+      toast("Pustaka peta belum tersedia. Plot koordinat tetap dapat digunakan.");
       return;
     }
     $("signal-map").replaceChildren();
-    state.map = L.map("signal-map", { scrollWheelZoom: false }).setView(
-      [-7.05, 110.44],
-      15,
-    );
-    state.markers = L.layerGroup().addTo(state.map);
+    const map = state.map = L.map("signal-map", { scrollWheelZoom: false, maxZoom: 19 }).setView([-7.05, 110.44], 15);
+    state.markers = L.layerGroup().addTo(map);
+    state.tilesFailed = false;
     let errors = 0;
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    const tiles = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 19,
-      attribution:
-        '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a>',
-    })
-      .addTo(state.map)
-      .on("tileerror", () => {
-        if (++errors >= 3 && state.map) {
-          changeMapMode("points");
-          toast("Peta dasar gagal dimuat. Plot koordinat tetap tersedia.");
-        }
-      });
+      referrerPolicy: "strict-origin-when-cross-origin",
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors',
+    }).addTo(map).on("tileerror", () => {
+      if (++errors < 3 || state.map !== map || state.tilesFailed) return;
+      state.tilesFailed = true;
+      if (state.mapMode === "heatmap") {
+        map.removeLayer(tiles);
+        heatmapStatus();
+        text("map-view-note", "Heatmap lokal · peta jalan tidak tersedia");
+      } else {
+        changeMapMode("points");
+        toast("Peta dasar gagal dimuat. Plot koordinat tetap tersedia.");
+      }
+    });
   }
   function changeMapMode(mode) {
-    if (state.map) {
-      state.map.remove();
-      state.map = null;
+    if (!["points", "grid", "roads", "heatmap"].includes(mode)) return;
+    if (["grid", "heatmap"].includes(mode) && mixedContexts()) return;
+    if (mode === "heatmap" && (!window.SigHeatHeatmap || !window.SigHeatHeatLayer)) {
+      toast("Aset heatmap belum tersedia. Salin folder assets dari paket lengkap."); return;
     }
+    if (state.map) state.map.remove();
+    state.map = null;
+    state.markers = null;
+    state.heatmapLayer = null;
+    state.heatmapInfo = null;
+    state.heatmapRender = null;
+    state.tilesFailed = false;
     state.mapMode = mode;
     state.mapFitted = false;
-    if (mode === "roads") initRoadMap();
+    if (mode === "roads" || mode === "heatmap") initRoadMap();
     renderMap();
   }
   function renderMap() {
+    refreshClassifications();
     const root = $("signal-map");
     if (!root) return;
-    ["points", "grid", "roads"].forEach((mode) =>
-      $("map-" + mode)?.classList.toggle("active", state.mapMode === mode),
-    );
-    text(
-      "map-view-note",
-      state.mapMode === "grid"
-        ? "Grid terukur ±25 m · sel kosong belum diukur"
-        : state.mapMode === "roads"
-          ? "Peta OSM · pilih Titik jika peta gagal"
-          : "Plot koordinat · tanpa peta dasar",
-    );
+    const heat = state.mapMode === "heatmap";
+    ["points", "grid", "roads", "heatmap"].forEach((mode) => {
+      $("map-" + mode)?.classList.toggle("active", state.mapMode === mode);
+      $("map-" + mode)?.setAttribute("aria-pressed", String(state.mapMode === mode));
+    });
+    root.classList.toggle("heatmap-map", heat);
+    if ($("map-standard-legend")) $("map-standard-legend").hidden = heat;
+    if ($("heatmap-legend")) $("heatmap-legend").hidden = !heat;
+    text("map-view-note", heat
+      ? state.tilesFailed ? "Heatmap lokal · peta jalan tidak tersedia" : "Area beban relatif · penghalusan 35 m"
+      : state.mapMode === "grid" ? "Kelas ML mayoritas per sel ±25 m · seri ditandai abu-abu"
+      : state.mapMode === "roads" ? "Peta OSM · pilih Titik jika peta gagal"
+      : "Plot koordinat · tanpa peta dasar");
     const points = visiblePoints().filter(
       (p) => finite(p.latitude) && finite(p.longitude),
     );
-    if (state.map && state.mapMode === "roads") {
+    if (state.map && ["roads", "heatmap"].includes(state.mapMode)) {
+      if (heat) {
+        state.heatmapInfo = window.SigHeatHeatmap.prepareSamples(points, { classify: learnedClassification, scope: qualityContext });
+        state.heatmapRender = null;
+        if (!state.heatmapLayer) state.heatmapLayer = window.SigHeatHeatLayer.create(L, {
+          onRender(result) { state.heatmapRender = result; heatmapStatus(); },
+        }).addTo(state.map);
+        state.heatmapLayer.setSamples(state.heatmapInfo.samples);
+        heatmapStatus();
+      }
       state.markers.clearLayers();
       points.forEach((p) => {
+        const locationUncertain = heat && finite(p.accuracy_m) && p.accuracy_m > 35;
+        const heatValue = window.SigHeatHeatmap?.QUALITY_VALUES[p.quality];
+        const color = heat ? locationUncertain || !finite(heatValue) ? colors.unknown : window.SigHeatHeatmap.hexAt(heatValue) : colors[p.quality];
         const marker = L.circleMarker([p.latitude, p.longitude], {
-          radius: state.selected === p.device_id ? 7 : 5,
+          radius: heat ? (state.selected === p.device_id ? 4 : 2.5) : (state.selected === p.device_id ? 7 : 5),
           color: "#fff",
           weight: 2,
-          fillColor: colors[p.quality],
+          fillColor: color,
           fillOpacity: stale(p) ? 0.4 : 0.9,
         }).addTo(state.markers);
         const popup = el("div");
         popup.append(
           el("strong", name(p.device_id)),
           el("div", fmt(p.latency_mean_ms) + " ms · " + sourceLabel(p.source)),
+          el("div", p.probe_ok ? labels[p.quality] : "Probe timeout; tidak terklasifikasi"),
+          el("div", "Model " + (p.ml_classification?.model_id || "belum tersedia")),
           el("div", p.latitude.toFixed(5) + ", " + p.longitude.toFixed(5)),
         );
+        if (heat) popup.append(el("div", locationUncertain ? "Tidak membentuk heatmap: ketidakpastian lokasi >35 m." : "Titik pengamatan; warna area di sekitarnya adalah hasil penghalusan."));
         marker.bindPopup(popup).on("click", () => selectDevice(p.device_id));
       });
       if (points.length && !state.mapFitted) {
@@ -661,7 +744,7 @@
       el(
         "span",
         state.mapMode === "grid"
-          ? "Rerata per sel ±25 m · tanpa interpolasi"
+          ? "Kelas ML mayoritas ±25 m · tanpa interpolasi"
           : "Plot koordinat WGS84 · utara di atas",
         "fallback-caption",
       ),
@@ -696,9 +779,9 @@
         1.55,
       lonSpan = (latSpan * ratio) / cos;
     if (state.mapMode === "grid") {
-      C.aggregateGrid(points, 25).forEach((cell) => {
+      C.aggregateGrid(points, 25, { classify: learnedClassification, scope: qualityContext }).forEach((cell) => {
         const quality =
-            cell.quality || C.quality(cell.latency_mean_ms, cell.success_pct),
+            cell.quality || "unknown",
           button = el("button", undefined, "measured-cell"),
           w =
             ((cell.bounds
@@ -719,7 +802,8 @@
         button.style.width = w + "%";
         button.style.height = h + "%";
         button.style.background = colors[quality];
-        button.title = `${fmt(cell.latency_mean_ms, 1)} ms · ${cell.count} sampel · ${sourceLabel(cell.source)} · sel ±25 m`;
+        const counts = cell.quality_counts || {};
+        button.title = `${labels[quality]} · ${fmt(cell.latency_mean_ms, 1)} ms · ${cell.count} sampel · rendah ${counts.good || 0}, sedang ${counts.fair || 0}, tinggi ${counts.poor || 0}, tidak terklasifikasi ${counts.unknown || 0} · model ${(cell.quality_model_ids || []).join(", ") || "belum tersedia"} · ${sourceLabel(cell.source)} · sel ±25 m`;
         button.setAttribute("aria-label", button.title);
         if ((w * root.clientWidth) / 100 > 17)
           button.textContent = String(cell.count);
@@ -740,7 +824,7 @@
       button.style.left = x + "%";
       button.style.top = y + "%";
       button.style.background = colors[p.quality];
-      button.title = `${name(p.device_id)} · ${sourceLabel(p.source)} · ${fmt(p.latency_mean_ms)} ms · ${p.latitude.toFixed(5)}, ${p.longitude.toFixed(5)}`;
+      button.title = `${name(p.device_id)} · ${sourceLabel(p.source)} · ${fmt(p.latency_mean_ms)} ms · ${p.probe_ok ? labels[p.quality] : "Probe timeout"} · model ${p.ml_classification?.model_id || "belum tersedia"} · ${p.latitude.toFixed(5)}, ${p.longitude.toFixed(5)}`;
       button.setAttribute("aria-label", button.title);
       button.addEventListener("click", () => selectDevice(p.device_id));
       plane.append(button);
@@ -962,6 +1046,7 @@
         fresh = !state.devices.has(p.device_id);
       state.devices.set(p.device_id, p);
       state.points.push(p);
+      window.SigHeatMLPanel?.ingest({ ...p, project_id: state.project });
       state.points = state.points.slice(-1000);
       if (!state.selected) state.selected = p.device_id;
       if (fresh)
@@ -1122,7 +1207,7 @@
           device_id: id,
           boot_id: "contoh-" + id,
           sequence: i + 1,
-          sent_at_ms: now - 60000 + i * 10000,
+          sent_at_ms: now - 25000 + i * 5000,
           source: "demo",
           latency_type: "mqtt_app_rtt",
           latency_ms: mean,
@@ -1142,13 +1227,14 @@
           latitude: lat + (i - 5) * 0.00023,
           longitude: lon + (i - 5) * 0.00032,
           accuracy_m: 6 + deviceIndex * 2,
-          location_at_ms: now - 60000 + i * 10000,
+          location_at_ms: now - 25000 + i * 5000,
           interval_s: 5,
           sensor_errors: [],
           broker_endpoint: "wss://example.invalid/mqtt",
         });
         state.points.push(p);
         state.devices.set(id, p);
+        window.SigHeatMLPanel?.ingest(p);
       }),
     );
     state.selected = "hp-a";
@@ -1167,6 +1253,12 @@
       "mode",
       "project_id",
       "device_id",
+      "boot_id",
+      "sequence",
+      "interval_s",
+      "schema_version",
+      "received_at_ms",
+      "location_at_ms",
       "source",
       "source_label",
       "broker_endpoint",
@@ -1471,6 +1563,9 @@
     return;
   }
   if (dashboard) {
+    window.SigHeatMLPanel?.configure({
+      onChange: render,
+    });
     document.querySelectorAll("[data-open-connection]").forEach((b) =>
       b.addEventListener("click", () => {
         text("connection-error", "");
@@ -1507,7 +1602,7 @@
     $("set-interval").addEventListener("click", () =>
       sendCommand("set_interval", Number($("interval-select").value)),
     );
-    ["points", "grid", "roads"].forEach((mode) =>
+    ["points", "grid", "roads", "heatmap"].forEach((mode) =>
       $("map-" + mode).addEventListener("click", () => changeMapMode(mode)),
     );
     $("fit-map").addEventListener("click", () => {

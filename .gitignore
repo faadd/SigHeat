@@ -12,3 +12,6 @@ output/
 *.csv
 *.jsonl
 !docs/example-telemetry.json
+!data/demo-synthetic.csv
+data/local/
+models/local/
