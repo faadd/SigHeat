@@ -60,13 +60,31 @@
         this.commands = new Map();
         this.lastCommandAt = -Infinity;
         this.lastSampleAt = -Infinity;
+        this.desiredRunning = false;
+        this.permissionGranted = null;
+        this.permissionRequest = null;
+        this.retryTimer = null;
+        this.retryAttempt = 0;
+        this.wakeLock = null;
+        this.wakeLockPending = false;
         this.motionListener = (event) => this._motion(event);
         this.visibilityListener = () => {
-          if (this.env.document.hidden && this.active)
+          if (this.env.document.hidden && this.desiredRunning)
             this._teardown(
               "paused",
-              "Pengukuran dijeda karena tab tidak terlihat. Kembali ke tab, lalu tekan Mulai lagi.",
+              "Pengukuran dijeda: tab tidak terlihat. Otomatis mulai sesi baru saat tab terlihat kembali.",
+              true,
             );
+          else if (!this.env.document.hidden && this.desiredRunning && !this.active)
+            this._resume();
+        };
+        this.onlineListener = () => {
+          if (this.desiredRunning && !this.active && !this.env.document.hidden)
+            this._resume();
+        };
+        this.offlineListener = () => {
+          if (this.desiredRunning && !this.env.document.hidden)
+            this._retry("Jaringan perangkat terputus.");
         };
         this.unloadListener = () => this.stop();
       }
@@ -102,7 +120,64 @@
           detail,
           connection_ready: this.ready,
           boot_id: this.bootId,
+          session_requested: this.desiredRunning,
         });
+      }
+      _listenLifecycle() {
+        this.env.document.addEventListener("visibilitychange", this.visibilityListener);
+        this.env.addEventListener("pagehide", this.unloadListener);
+        this.env.addEventListener("online", this.onlineListener);
+        this.env.addEventListener("offline", this.offlineListener);
+      }
+      _resume() {
+        this.env.clearTimeout(this.retryTimer);
+        this.retryTimer = null;
+        if (!this.desiredRunning || this.active || this.env.document.hidden) return;
+        // A granted motion permission remains usable after a visibility change;
+        // never request iOS permission again without a user gesture.
+        this.start({ resume: true }).catch(() => {});
+      }
+      _retry(reason) {
+        if (!this.desiredRunning) return;
+        if (this.env.document.hidden) {
+          this._teardown("paused", "Tab tersembunyi. Pengukuran dilanjutkan saat tab terlihat kembali.", true);
+          return;
+        }
+        const delay = Math.min(30000, 1000 * 2 ** Math.min(this.retryAttempt++, 5));
+        this._teardown("reconnecting", `${reason} Belum terhubung; mencoba lagi dalam ${delay / 1000} detik. Periksa broker/akun bila berulang.`, true);
+        this.retryTimer = this.env.setTimeout(() => this._resume(), delay);
+      }
+      async _requestWakeLock(generation) {
+        const wakeLock = this.env.navigator.wakeLock;
+        if (this.config.keepScreenAwake === false || !wakeLock?.request || this.wakeLockPending || this.wakeLock || this.env.document.hidden) return;
+        this.wakeLockPending = true;
+        try {
+          const lock = await wakeLock.request("screen");
+          if (!this._alive(generation) || !this.ready || this.env.document.hidden) {
+            await lock.release();
+            return;
+          }
+          this.wakeLock = lock;
+          lock.addEventListener?.("release", () => {
+            if (this.wakeLock === lock) {
+              this.wakeLock = null;
+              this._call("onWakeLock", "Layar tidak lagi ditahan oleh browser. Jaga tab tetap terlihat.");
+            }
+          });
+          this._call("onWakeLock", "Layar dijaga tetap menyala selama tab pengukuran terlihat.");
+        } catch (_) {
+          this._call("onWakeLock", "Browser tidak mengizinkan penahan layar. Jaga layar dan tab tetap aktif.");
+        } finally {
+          this.wakeLockPending = false;
+          if (generation !== this.generation && this.active && this.ready && !this.env.document.hidden)
+            this._requestWakeLock(this.generation);
+        }
+      }
+      _releaseWakeLock() {
+        const lock = this.wakeLock;
+        this.wakeLock = null;
+        if (lock) Promise.resolve(lock.release()).catch(() => {});
+        this._call("onWakeLock", "Penahan layar tidak aktif.");
       }
       _log(text) {
         this._call("onLog", text);
@@ -117,7 +192,7 @@
       _topic(kind) {
         return Core.topic(this.config.project, this.config.deviceId, kind);
       }
-      async start() {
+      async start({ resume = false } = {}) {
         if (this.active) return;
         if (!this.env.isSecureContext) {
           this._state(
@@ -135,6 +210,7 @@
           throw new Error("Paho tidak tersedia.");
         }
         this.active = true;
+        this.desiredRunning = true;
         this.ready = false;
         const generation = ++this.generation;
         this.bootId = Core.makeId("boot");
@@ -155,10 +231,12 @@
         let permission;
         try {
           const Motion = this.env.DeviceMotionEvent;
-          permission =
-            Motion && typeof Motion.requestPermission === "function"
+          permission = resume
+            ? this.permissionRequest || Promise.resolve(this.permissionGranted || "denied")
+            : Motion && typeof Motion.requestPermission === "function"
               ? Motion.requestPermission()
               : Promise.resolve("granted");
+          this.permissionRequest = permission;
         } catch (error) {
           this._teardown(
             "error",
@@ -166,13 +244,17 @@
           );
           throw error;
         }
+        this._listenLifecycle();
+        let connecting = false;
         try {
           const granted = await permission;
+          this.permissionGranted = granted;
           if (!this._alive(generation)) return;
           if (this.env.document.hidden) {
             this._teardown(
               "paused",
-              "Tab tersembunyi. Kembali ke tab lalu tekan Mulai lagi.",
+              "Tab tersembunyi. Pengukuran dilanjutkan saat tab terlihat kembali.",
+              true,
             );
             return;
           }
@@ -182,27 +264,29 @@
             );
           if (granted === "granted")
             this.env.addEventListener("devicemotion", this.motionListener);
-          this.env.document.addEventListener(
-            "visibilitychange",
-            this.visibilityListener,
-          );
-          this.env.addEventListener("pagehide", this.unloadListener);
           if (this.config.shareLocation) this._watchLocation(generation);
           this._state(
             "connecting",
             "Menghubungkan broker dan menunggu konfirmasi langganan.",
           );
+          connecting = true;
           await this._connect(generation);
           if (!this._alive(generation)) return;
           this.ready = true;
+          this.retryAttempt = 0;
           this._state(
             "running",
             "Terhubung. Jaga tab tetap terlihat saat pengukuran.",
           );
           this._send(this._topic("status"), this._status(true), true, 0);
+          this._requestWakeLock(generation);
           this._schedule(500);
         } catch (error) {
           if (this._alive(generation)) {
+            if (connecting) {
+              this._retry("Sambungan broker belum siap.");
+              return;
+            }
             this._teardown(
               "error",
               "Tidak dapat memulai. Periksa izin, koneksi, broker, dan ACL.",
@@ -383,10 +467,7 @@
         };
         client.onConnectionLost = (response) => {
           if (!this._alive(generation)) return;
-          this._teardown(
-            "error",
-            "Koneksi broker terputus. Periksa jaringan lalu tekan Mulai lagi.",
-          );
+          this._retry("Koneksi broker terputus.");
         };
         return new Promise((resolve, reject) => {
           let settled = false;
@@ -639,20 +720,25 @@
           );
         return seconds;
       }
-      _teardown(status, detail) {
+      _teardown(status, detail, preserveIntent = false) {
         this.active = false;
         this.ready = false;
+        if (!preserveIntent) this.desiredRunning = false;
         ++this.generation;
         this.env.clearTimeout(this.timer);
+        this.env.clearTimeout(this.retryTimer);
         this.timer = null;
+        this.retryTimer = null;
+        this._releaseWakeLock();
         this._finishProbe({ cancelled: true });
         if (this.cancelConnect) this.cancelConnect();
         this.env.removeEventListener("devicemotion", this.motionListener);
-        this.env.removeEventListener("pagehide", this.unloadListener);
-        this.env.document.removeEventListener(
-          "visibilitychange",
-          this.visibilityListener,
-        );
+        if (!preserveIntent) {
+          this.env.removeEventListener("pagehide", this.unloadListener);
+          this.env.removeEventListener("online", this.onlineListener);
+          this.env.removeEventListener("offline", this.offlineListener);
+          this.env.document.removeEventListener("visibilitychange", this.visibilityListener);
+        }
         if (this.geoWatch != null && this.env.navigator.geolocation)
           this.env.navigator.geolocation.clearWatch(this.geoWatch);
         this.geoWatch = null;

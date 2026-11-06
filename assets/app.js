@@ -1344,13 +1344,14 @@
   }
   function edgeState(info) {
     const status = info.status,
-      busy = ["requesting", "connecting", "running"].includes(status);
+      busy = info.session_requested === true || ["requesting", "connecting", "reconnecting", "running"].includes(status);
     text(
       "participant-status",
       {
         idle: "Siap",
         requesting: "Izin sensor",
         connecting: "Menghubungkan",
+        reconnecting: "Menyambung ulang",
         running: "Berjalan",
         paused: "Dijeda",
         stopped: "Berhenti",
@@ -1373,6 +1374,7 @@
       "edge-password",
       "edge-interval",
       "edge-share-location",
+      "edge-keep-awake",
     ].forEach((id) => ($(id).disabled = busy));
     if (status === "running") text("edge-error", "");
     if (status === "error")
@@ -1503,6 +1505,7 @@
       password: $("edge-password").value,
       intervalS: Number($("edge-interval").value),
       shareLocation: $("edge-share-location").checked,
+      keepScreenAwake: $("edge-keep-awake").checked,
     };
     try {
       state.edge = new SigHeatEdge.EdgeClient(config, {
@@ -1511,6 +1514,9 @@
         },
         onSample: (p) => {
           if (generation === state.edgeGeneration) edgeSample(p);
+        },
+        onWakeLock: (message) => {
+          if (generation === state.edgeGeneration) text("edge-wake-state", message);
         },
         onLog: (message) => {
           if (generation === state.edgeGeneration) log(message);

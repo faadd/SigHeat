@@ -1,4 +1,4 @@
-/* Automatic local learning. Only validated telemetry enters the manager. */
+/* Legacy local learning or read-only central inference; demo stays isolated. */
 (function (root) {
   "use strict";
   const document = root.document;
@@ -20,14 +20,15 @@
     if (L) { live = L.create({storage, seed: root.SigHeatLearningSeed}); demo = L.create({storage: null}); }
     else startupError = "Modul pembelajaran tidak tersedia. Periksa assets/learning.js dan model awal.";
   } catch (error) { startupError = "Model awal gagal dimuat: " + String(error.message || error); }
-  const managerFor = (row) => row?.source === "demo" ? demo : live;
+  const central = () => root.SigHeatCentral ? !!root.SigHeatCentral.enabled() : !!root.SigHeatCentralConfig && root.SigHeatCentralConfig.mode !== "local";
+  const managerFor = (row) => row?.source === "demo" ? demo : central() ? root.SigHeatCentral?.manager : live;
   const emptyClass = () => ({quality: "unknown", label: "Tidak terklasifikasi", reason: "Model belum tersedia."});
   function classify(row) {
     try { return managerFor(row)?.classify(row) || emptyClass(); }
     catch (_) { return emptyClass(); }
   }
   function inspect(row) {
-    try { return managerFor(row)?.inspect(row) || {}; } catch (_) { return {}; }
+    try { return central() && row?.source !== "demo" ? root.SigHeatCentral?.inspect(row) || {} : managerFor(row)?.inspect(row) || {}; } catch (_) { return {}; }
   }
   function render() {
     const row = currentRow, manager = managerFor(row), info = inspect(row), quality = row ? classify(row) : emptyClass();
@@ -69,16 +70,31 @@
     const evidence = {model_rtt: info.modelId || null, sumber_model_rtt: info.modelProvenance || "synthetic", model_kelompok: info.clusterModelId || null, sumber_model_kelompok: info.clusterProvenance || "synthetic", evaluasi_rtt_baru: info.lastForecastEvaluation || null, evaluasi_kelompok_baru: info.lastClusterEvaluation || null, validasi_kandidat: info.trainingReport || null};
     text("ml-evaluation", JSON.stringify(evidence, null, 2));
     $("ml-export-data").disabled = !row || !manager || !(info.sampleCount > 0);
-    $("ml-export-backup").disabled = !live;
-    $("ml-import-backup").disabled = !live;
-    $("ml-clear").disabled = !live;
+    $("ml-export-backup").disabled = !live || central();
+    $("ml-import-backup").disabled = !live || central();
+    $("ml-clear").disabled = !live || central();
+    if (central()) {
+      text("ml-backup-note", "Mode pusat: cadangan lama browser tidak mengganti model bersama. Gunakan ekspor arsip pusat dan backup database pada mesin pusat; kontrol pemulihan lokal dinonaktifkan.");
+      if (!synthetic) {
+        const sync = info.syncStatus || root.SigHeatCentral?.manager?.status() || {error: "Modul pusat belum tersedia. Periksa koneksi dan berkas aplikasi; training lokal tetap dinonaktifkan."};
+        text("ml-status", sync.error || (pending ? "Layanan pusat membandingkan kandidat pada target baru. Browser hanya menggunakan parameter pusat." : "Training otomatis berjalan di layanan pusat ketika data valid cukup. Tidak ada training di browser ini."));
+        text("ml-data-note", row ? `${info.totalAccepted ?? info.sampleCount ?? 0} pengukuran konteks diterima pusat. Buffer latihan ${info.sampleCount || 0} baris; arsip lengkap disimpan terpisah dalam database.` : "Hubungkan perangkat dan layanan pusat. Training dimulai otomatis ketika data valid cukup.");
+        text("ml-storage-note", `Model pada dashboard: ${sync.version || "bootstrap sintetis (belum sinkron)"}. ${sync.source === "cache" ? "Menggunakan cache valid terakhir." : ""} Menutup dashboard tidak menghentikan layanan pusat yang masih menyala.`);
+        text("ml-export-data", "Unduh dataset pusat (CSV)");
+        $("ml-export-data").disabled = !row || !root.SigHeatCentral?.status().config.apiURL;
+      }
+    } else {
+      text("ml-export-data", "Unduh dataset perangkat (CSV)");
+      text("ml-backup-note", "Pemulihan mengganti pembelajaran lokal dari cadangan yang valid. Unduh cadangan saat ini sebelum memulihkan. Tidak ada GPS atau kredensial broker dalam cadangan.");
+    }
   }
   function schedule(manager, maintain) {
-    if (!manager) return;
+    if (!manager || (manager !== live && manager !== demo)) return;
     if (maintain && !queued.has(manager)) {
       queued.add(manager);
       setTimeout(() => {
         queued.delete(manager);
+        if (manager === live && central()) return;
         try { manager.maintain(); if (manager === live) manager.persist(); }
         catch (error) { text("ml-action-status", "Pembaruan model ditunda: " + String(error.message || error)); }
         render(); callbacks.onChange?.();
@@ -97,6 +113,7 @@
   }
   function exportRows() {
     if (!currentRow) return;
+    if (central() && currentRow.source !== "demo") return root.SigHeatCentral?.exportDataset(currentRow);
     const rows = managerFor(currentRow)?.exportRows(currentRow) || [];
     if (!rows.length) return;
     const columns = ["mode", "project_id", "schema_version", "device_id", "boot_id", "sequence", "source", "broker_endpoint", "sent_at_ms", "interval_s", "latency_type", "probe_ok", "probe_count", "latency_ms", "latency_mean_ms", "latency_std_ms", "success_pct", "accel_rms", "accel_mode", "accel_available", "gyro_rms_rad_s", "gyro_available", "rotation_total_rad", "sensor_window_ms"];
@@ -105,13 +122,13 @@
   }
   $("ml-export-data").addEventListener("click", exportRows);
   $("ml-export-backup").addEventListener("click", () => {
-    if (!live) return;
+    if (!live || central()) return;
     download(JSON.stringify(live.exportState(), null, 2) + "\n", "sigheat-pembelajaran.json", "application/json");
     text("ml-action-status", "Cadangan pembelajaran nyata diunduh. Data demo tidak disertakan.");
   });
   $("ml-import-backup").addEventListener("change", async (event) => {
     const file = event.target.files?.[0], token = ++actionToken;
-    if (!file || !live) return;
+    if (!file || !live || central()) return;
     try {
       if (file.size > 8 * 1024 * 1024) throw new Error("Berkas maksimal 8 MiB.");
       const parsed = JSON.parse(await file.text());
@@ -127,6 +144,7 @@
   $("ml-clear").addEventListener("click", () => { $("ml-clear-confirm").hidden = false; $("ml-clear-cancel").focus?.(); });
   $("ml-clear-cancel").addEventListener("click", () => { $("ml-clear-confirm").hidden = true; $("ml-clear").focus?.(); });
   $("ml-clear-yes").addEventListener("click", () => {
+    if (central()) return;
     actionToken++;
     live?.clearLearning();
     $("ml-clear-confirm").hidden = true;
@@ -159,8 +177,10 @@
       selected = info.selected || null; connected = !!info.connected; isDemo = !!info.demo;
       staleIds = new Set(info.staleDeviceIds || []); contexts = info.contextCount || 0;
       currentRow = info.row || (selected ? latest.get(selected) || null : null);
+      root.SigHeatCentral?.select(currentRow, isDemo);
       render();
     },
   };
+  root.SigHeatCentral?.subscribe(() => { render(); callbacks.onChange?.(); });
   render();
 })(window);
