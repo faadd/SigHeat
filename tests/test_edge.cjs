@@ -239,7 +239,7 @@ test("command ACK is bound to current boot and duplicate does not change interva
   assert.equal(JSON.parse(outbound[0].payloadString).status, "ok");
   f.edge.stop();
 });
-test("hidden tab disconnects and cleans listeners, GPS and pending probe", async () => {
+test("hidden tab cancels measurement and keeps only lifecycle listeners for auto-resume", async () => {
   const f = fixture();
   let clear = 0;
   f.edge.config.shareLocation = true;
@@ -257,8 +257,12 @@ test("hidden tab disconnects and cleans listeners, GPS and pending probe", async
   assert.equal(f.edge.status, "paused");
   assert.equal(f.edge.ready, false);
   assert.equal(clear, 1);
-  assert.equal(f.events.size, 0);
-  assert.equal(f.docEvents.size, 0);
+  assert.equal(f.events.has("devicemotion"), false);
+  assert.equal(f.events.size, 3);
+  assert.equal(f.docEvents.size, 1);
   assert.equal(f.timers.size, 0);
   assert.equal(f.clients[0].connected, false);
+  f.edge.stop();
+  assert.equal(f.events.size, 0);
+  assert.equal(f.docEvents.size, 0);
 });

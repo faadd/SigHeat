@@ -12,7 +12,7 @@ function memoryStorage() {
   const map = new Map();
   return {getItem: (k) => map.get(k) || null, setItem: (k, v) => map.set(k, v), removeItem: (k) => map.delete(k), map};
 }
-function harness({real = false, storage = memoryStorage(), seed = null} = {}) {
+function harness({real = false, storage = memoryStorage(), seed = null, centralConfig = undefined} = {}) {
   let now = Date.now();
   const nodes = new Map(), jobs = [], downloads = [], instances = [], blobs = new Map();
   class Node {
@@ -42,7 +42,7 @@ function harness({real = false, storage = memoryStorage(), seed = null} = {}) {
       clearLearning() { call.clears++; call.rows = []; },
     };
   }};
-  const window = {document, SigHeatLearning: engine, SigHeatCore: Core, localStorage: storage, SigHeatLearningSeed: seed, addEventListener() {}};
+  const window = {document, SigHeatLearning: engine, SigHeatCore: Core, localStorage: storage, SigHeatLearningSeed: seed, SigHeatCentralConfig: centralConfig, addEventListener() {}};
   class Clock extends Date { static now() { return now; } }
   vm.runInNewContext(source, {window, document, Date: Clock, URL: {createObjectURL(blob) { const id = "blob:" + blobs.size; blobs.set(id, blob); return id; }, revokeObjectURL() {}}, Blob, console, setTimeout(fn) {jobs.push(fn); return jobs.length;}});
   return {get, row, instances, jobs, storage, downloads, blobs, panel: window.SigHeatMLPanel,
@@ -144,4 +144,11 @@ test("actual learning engine predicts after six measurements and restores histor
   const previous = restored.instances[0].instance.inspect(h.row(7)).sampleCount;
   restored.panel.ingest(h.row(7)); restored.panel.ingest(h.row(1));
   assert.equal(restored.instances[0].instance.inspect(h.row(7)).sampleCount, previous);
+});
+
+ test("central configuration fails closed when central scripts are unavailable instead of training locally", () => {
+  const h = harness({centralConfig: {}}); collect(h); h.runJobs();
+  assert.equal(h.instances[0].ingests, 0); assert.equal(h.instances[0].maintains, 0);
+  assert.match(h.get("ml-status").textContent, /Modul pusat belum tersedia/);
+  assert.equal(h.get("ml-import-backup").disabled, true);
 });

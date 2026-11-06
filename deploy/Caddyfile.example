@@ -1,0 +1,4 @@
+# Ganti domain. DNS harus mengarah ke server pusat yang tetap hidup.
+central.example.com {
+  reverse_proxy 127.0.0.1:8787
+}

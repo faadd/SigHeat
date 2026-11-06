@@ -1,58 +1,80 @@
-# File yang di-commit ke GitHub
+# File yang di-commit ke GitHub — SigHeat v5
 
-Commit **isi proyek versi 4.1 ke root repository SigHeat**, dengan struktur folder yang sama. Tidak perlu mengunggah ZIP ke dalam repository. File HTML, JavaScript, model, dan dokumentasi harus merupakan satu versi yang cocok; mengganti HTML saja akan meninggalkan dependensi lama.
+Commit **isi source proyek v5 ke root repository SigHeat**, dengan struktur folder yang sama. Tidak perlu memasukkan ZIP ke repository. HTML, JavaScript, backend, model, dan dependensi harus berasal dari versi yang cocok; mengganti `dashboard.html` saja tidak cukup.
 
-## File aplikasi dan model
+Ada dua pekerjaan yang berbeda: **commit source** menyimpan program di GitHub, sedangkan **deployment Pages** menyajikan hasil build website. Backend pusat tetap dijalankan pada mesin Node.js; GitHub Pages tidak menjalankan training atau database.
+
+## 1. Source dan konfigurasi contoh
 
 | File/folder | Alasan disertakan |
 |---|---|
-| `dashboard.html` | Halaman peta dengan ringkasan pembelajaran; tab training lama dihapus |
-| `assets/app.js`, `assets/core.js`, `assets/style.css` | Integrasi peta, kategori ML, agregasi, dan tampilan |
-| `assets/heatmap.js`, `assets/heatmap-layer.js` | Heatmap lokal dengan kernel ternormalisasi dan lapisan Canvas Leaflet |
-| `server.py` | Kebijakan pemuatan gambar mengizinkan hostname tile OpenStreetMap yang digunakan |
-| `assets/ml.js` | Ridge, fitur lag, evaluasi, dan konteks lintas boot |
-| `assets/ml-ui.js` | Inferensi otomatis, status, ekspor, pemulihan, dan penghapusan pembelajaran |
-| `assets/learning.js` | Kandidat otomatis, pembandingan data baru, konteks, dan persistensi |
-| `assets/clusters.js` | K-Means dan centroid awal yang langsung dapat dipakai |
-| `assets/default-model.js` | Parameter Ridge bawaan untuk browser |
-| `assets/learning-seed.js` | Tempat model awal hasil pengukuran kelompok; awal paket kosong |
-| `models/default-rtt.json`, `models/default-clusters.json` | Artefak numerik yang dapat diperiksa dan direproduksi |
-| `scripts/build-default-model.cjs`, `scripts/build-cluster-default.cjs` | Membuat ulang model awal sintetis |
-| `scripts/build-learning-seed.cjs` | Mengemas cadangan pengukuran tervalidasi sebagai model awal kelompok |
-| `package.json` | Versi dan perintah pemeriksaan/build |
+| `index.html`, `dashboard.html` | Pengukur browser dan dashboard; grafik berada di panel rincian pembelajaran |
+| `assets/app.js`, `assets/core.js`, `assets/edge.js`, `assets/style.css` | MQTT, validasi, sensor, peta, kontrol, dan tampilan |
+| `assets/ml.js`, `assets/clusters.js`, `assets/default-model.js` | Engine Ridge/K-Means serta bootstrap sintetis |
+| `assets/central-client.js`, `assets/central-ui.js`, `assets/central-ui.css`, `assets/central-config.js` | Pemeriksaan model terbitan/pusat, cache, pengaturan API, grafik, dan ekspor bukti |
+| `assets/ml-ui.js`, `assets/learning.js`, `assets/learning-seed.js` | Integrasi ringkasan ML dan kompatibilitas mode lokal lama; seed paket awal tetap kosong |
+| `assets/heatmap.js`, `assets/heatmap-layer.js`, `assets/vendor/` | Heatmap, Leaflet/Paho browser, dan lisensi aset yang disertakan |
+| `server/` | Konfigurasi pusat, listener MQTT, SQLite, training/evaluasi, API, artefak, dan antrean publikasi |
+| `scripts/` | Build publik, administrasi backup/restore/rollback, skrip Termux, dan CLI eksperimen |
+| `models/default-rtt.json`, `models/default-clusters.json` | Model bawaan sintetis yang dapat diperiksa |
+| `models/latest.json`, `models/releases/` | Manifest dan artefak parameter berversi yang memang disiapkan untuk publikasi |
+| `package.json`, `package-lock.json` | Versi program, perintah npm, serta versi/integritas dependensi |
+| `.env.central.example`, `.env.example` | Contoh konfigurasi pusat dan edge, tanpa rahasia |
+| `.github/workflows/pages.yml` | Build dan deployment Pages yang eksplisit |
+| `Dockerfile`, `compose.yaml`, `.dockerignore`, `deploy/` | Contoh pemasangan layanan pusat dan reverse proxy |
+| File Python edge/sensor, `requirements.txt`, `server.py`, `conf/` | Pengukur Termux, kontrak sensor, serta utilitas/config lama yang masih diperlukan |
+| `.gitignore`, `.nojekyll` | Pengecualian file privat/lokal dan dukungan website statis |
 
-Pertahankan file aplikasi asli yang tetap diperlukan: `index.html`, `assets/edge.js`, `assets/vendor/`, `server.py`, file Python edge dan sensor, `requirements.txt`, serta konfigurasi contoh. File yang tidak berubah tidak perlu dibuat ulang sebagai perubahan commit.
+`assets/central-config.js` boleh memuat alamat layanan/manifest publik bila sengaja dikonfigurasi untuk kelompok. Jangan meletakkan token baca, password broker, atau token GitHub pada file JavaScript publik.
 
-## Pengujian, data contoh, dan dokumentasi
+Paket parameter dapat memuat ID proyek/perangkat dan alamat broker tanpa kredensial untuk pencocokan konteks. Tinjau metadata tersebut sebelum menerbitkan repository publik. Paket tidak boleh memuat dataset mentah, GPS, atau cadangan lengkap.
 
-Sertakan folder `tests/` lengkap agar pemeriksaan sesuai kode yang diterbitkan. Tes versi 4 mencakup clustering, konteks regresi, pengelolaan pembelajaran, pemulihan, seed, dan integrasi UI. Tambahan 4.1 terdapat pada `tests/test_heatmap.cjs` dan `tests/test_heatmap_ui.cjs`; sertakan keduanya bersama engine dan adapter heatmap.
+## 2. Pengujian dan dokumentasi
 
-Sertakan `README.md`, `docs/`, `THIRD_PARTY.md`, dan `PACKAGE_MANIFEST.json` dari paket. `docs/Pembahasan_SigHeat_AI_v4.pdf` adalah pembahasan pembelajaran otomatis versi 4; panduan tambahan heatmap berada pada `docs/HEATMAP.md`. Dataset sintetis serta model demo lama dapat tetap berada di `data/` dan `models/demo/`; keduanya diberi asal sintetis dan bukan data pengukuran kelompok.
+Sertakan `tests/`, `README.md`, `CHANGELOG.md`, `docs/`, `THIRD_PARTY.md`, serta `PACKAGE_MANIFEST.json` dari paket. Jangan memasukkan hasil sementara tes atau log lokal sebagai source.
 
-## Sesudah kelompok mengumpulkan data nyata
+Panduan utama saat ini adalah [Mulai di sini v5](MULAI_DI_SINI_V5.md), [Arsitektur v5](ARSITEKTUR_V5.md), [Migrasi](MIGRASI_V4_V5.md), dan [Publikasi](PUBLISHING.md). Laporan pengujian paket ada di [Validasi v5](VALIDASI_V5.md).
 
-Gunakan `scripts/build-learning-seed.cjs` seperti dijelaskan pada `docs/UPGRADE_V4.md`. Commit perubahan `assets/learning-seed.js` yang dihasilkan bila kelompok memang ingin hasil belajar itu menjadi bawaan situs. File backup mentah tidak perlu ikut di-commit. Seed memuat metadata konteks seperti alamat broker dan ID perangkat; periksa sebelum menerbitkannya.
+Dokumen dan PDF versi lama dipertahankan sebagai referensi historis. Khususnya `docs/Pembahasan_SigHeat_AI.pdf` serta `docs/Pembahasan_SigHeat_AI_v4.pdf` **bukan panduan fitur pusat v5**. Pernyataan dalam dokumen lama tentang pembelajaran dan penyimpanan per browser berlaku untuk mode lokal lama.
 
-Menerbitkan seed tidak memperbarui cadangan lokal pengguna yang sudah ada. Cadangan lokal valid lebih diprioritaskan; pengujian seed baru sebaiknya dilakukan pada profil browser baru dengan konteks pengukuran yang cocok.
+Fixture sintetis yang sudah diberi label, seperti `data/demo-synthetic.csv` dan artefak `models/demo/`, boleh tetap disimpan sebagai contoh/pengujian. Jangan menggantinya dengan pengukuran pribadi lalu meng-commit tanpa pemeriksaan.
 
-## Yang tidak di-commit
+## 3. Setelah kelompok mengumpulkan data nyata
 
-- `.env`, password/token broker, token ngrok, private key, dan konfigurasi lokal berkredensial.
-- Cadangan pribadi browser, hasil ekspor GPS, atau dataset nyata yang belum diperiksa untuk publikasi.
-- Cache Python, `node_modules`, berkas sementara, dan log lokal.
-- ZIP hasil ekstraksi sebagai pengganti source proyek.
+Pada alur v5, layanan pusat menyimpan pengukuran dan melatih otomatis. Jika publikasi GitHub diaktifkan, perubahan parameter yang disiapkan pusat masuk antrean dan diterbitkan sebagai artefak berversi beserta `models/latest.json`. Pengguna tidak perlu mengunggah CSV atau cadangan browser setiap sesi.
 
-`.env.example` boleh disertakan selama hanya memuat contoh tanpa rahasia. Data pembelajaran dalam browser tidak otomatis dikirim ke GitHub.
+Dashboard Pages yang baru dibuka memakai mode pusat dan memeriksa manifest terbitan secara berkala. API pusat tetap perlu dikonfigurasi untuk mengakses riwayat grafik. `assets/learning-seed.js` **bukan mekanisme sinkronisasi model pusat**.
 
-## Pemeriksaan sebelum commit
+`scripts/build-learning-seed.cjs` tetap tersedia hanya untuk eksperimen/migrasi **mode lokal lama**. Jangan menjadikannya langkah rutin v5. Build Pages v5 mengganti seed browser dengan seed kosong agar cadangan lokal tidak ikut diterbitkan. Cadangan lokal yang sudah ada juga tidak mengalahkan model pusat ketika mode pusat dipilih.
 
-Dari root repository lokal:
+## 4. File yang tidak di-commit
+
+- `.env`, `.env.central`, atau konfigurasi lokal lain yang berisi password/token.
+- `private-data/`, database SQLite, berkas `-wal`/`-shm`, lock penulis, arsip publikasi privat, dan backup database.
+- Dataset pengukuran mentah, ekspor CSV/JSON pribadi, koordinat GPS, atau cadangan pembelajaran browser.
+- `node_modules/`, virtual environment Python, cache, hasil tes sementara, dan log.
+- `public-dist/` atau `dist/`: folder ini dibangun ulang oleh workflow, bukan source yang perlu di-commit.
+- ZIP paket atau salinan proyek hasil ekstraksi yang bersarang di dalam repository.
+
+`.env.central.example` dan `.env.example` boleh di-commit karena berisi contoh tanpa rahasia. `.gitignore` membantu, tetapi tetap periksa daftar perubahan; file rahasia yang sudah pernah dilacak Git tidak otomatis hilang dari riwayat hanya karena ditambahkan ke `.gitignore`.
+
+## 5. Pemeriksaan sebelum commit dan deployment
+
+Dari root proyek:
 
 ```bash
 git status --short
 git diff --stat
+npm ci
 npm test
-python -m unittest discover -s tests -p 'test_*.py'
+npm run test:python
+npm run build:public
 ```
 
-Tinjau isi perubahan, tambahkan file yang telah diperiksa, lalu buat commit. Contoh pesan commit tambahan 4.1: `Add local ML heatmap mode with color legend`. Paket ini tidak melakukan commit, push, atau deployment atas nama kelompok.
+Tes Python memerlukan dependensi dari `requirements.txt` pada lingkungan Python yang dipakai. Hasil pengujian adalah pemeriksaan perangkat lunak; itu tidak sama dengan pengujian HP/broker nyata.
+
+Tinjau isi perubahan, tambahkan hanya source yang telah diperiksa, lalu buat commit. Contoh pesan commit: `Add centralized learning and auditable evaluation charts`.
+
+Untuk Pages, gunakan **Settings → Pages → Source: GitHub Actions** dan workflow yang disertakan. Workflow menyajikan **`public-dist/` hasil build allowlist**, bukan seluruh root repository. Database, `server/`, `.env`, dataset, dan dokumen privat tidak menjadi aset website. Ikuti [panduan publikasi](PUBLISHING.md) untuk pengaturan token dan pemicu deployment model.
+
+ZIP yang diterima tidak otomatis melakukan commit, push, deployment, atau memasang layanan pusat pada akun/mesin kelompok.

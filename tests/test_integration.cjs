@@ -250,6 +250,8 @@ test("permission is requested during start gesture; becoming hidden during promp
   assert.equal(h.edge.active, false);
   assert.equal(h.clients.length, 0);
   assert.equal(h.timers.size, 0);
+  assert.equal(h.listenerCount(), 4); // Only lifecycle listeners survive a visibility pause.
+  h.edge.stop();
   assert.equal(h.listenerCount(), 0);
 });
 

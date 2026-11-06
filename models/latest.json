@@ -1,0 +1,9 @@
+{
+  "schema": "sigheat-model-manifest-v1",
+  "version": "model-0a175353de3eb329e6b22499",
+  "artifact": "releases/model-0a175353de3eb329e6b22499.json",
+  "sha256": "0a175353de3eb329e6b22499e583b67ce8fc5936a8fcee5aacb171d8f89651c7",
+  "bytes": 4144,
+  "published_at_ms": 1793934991382,
+  "model_revision": 1
+}

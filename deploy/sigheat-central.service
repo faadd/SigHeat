@@ -1,0 +1,24 @@
+[Unit]
+Description=SigHeat central MQTT collector and ML
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=sigheat
+Group=sigheat
+WorkingDirectory=/opt/sigheat
+EnvironmentFile=/opt/sigheat/.env.central
+ExecStart=/usr/bin/node /opt/sigheat/server/index.cjs
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/sigheat
+
+[Install]
+WantedBy=multi-user.target
