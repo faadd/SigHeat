@@ -1,10 +1,38 @@
-# SigHeat — Peta kualitas koneksi
+# SigHeat v5 — Peta koneksi dan pembelajaran pusat
 
-**SigHeat (Signal Heatmap)** adalah proyek IoT kelompok untuk membandingkan koneksi pada titik pengamatan: **dua HP sebagai edge**, **accelerometer + gyroscope**, **RMS dan integrasi rotasi**, **MQTT cloud**, serta **dashboard di laptop**. Kedua HP dapat memakai browser tanpa instalasi tambahan atau Termux + Python pada Android.
+**SigHeat (Signal Heatmap)** adalah proyek IoT kelompok untuk membandingkan koneksi pada titik pengamatan. HP mengukur gerak melalui accelerometer/gyroscope dan RTT aplikasi melalui MQTT. Dashboard menampilkan peta, heatmap, serta hasil AI. Pengukur dapat memakai browser HP atau Termux + Python pada Android.
 
 SigHeat mengukur waktu perjalanan pesan aplikasi **HP → broker → HP**, variasi latency, dan keberhasilan probe. Hasilnya bukan kekuatan radio dBm, ping ICMP, atau kecepatan unduh. Lokasi opsional membantu menempatkan pengamatan pada peta.
 
-## Versi 4.1: Mode Heatmap
+## Mulai dengan versi 5
+
+Versi 5 menambahkan **layanan pusat Node.js dan SQLite**. Data, training otomatis Ridge/K-Means, keputusan kandidat, dan riwayat evaluasi disimpan pada pusat. Dashboard lain mengambil model pusat yang sesuai; hasil belajar tidak lagi terbatas pada satu browser ketika mode pusat digunakan.
+
+**Panduan utama: [Mulai di sini — langkah sederhana v5](docs/MULAI_DI_SINI_V5.md).**
+
+1. Pasang Node.js **24 atau lebih baru**, lalu buka terminal di folder proyek.
+2. Jalankan `npm ci`.
+3. Salin `.env.central.example` menjadi `.env.central`; samakan proyek dan broker dengan HP.
+4. Jalankan `npm run central`.
+5. Buka **http://localhost:8787/dashboard.html**, lalu jalankan pengukuran pada HP.
+
+Tidak perlu menjalankan perintah training manual. Grafik RTT, MAE, kandidat, riwayat model, serta K-Means berada pada **Rincian pembelajaran & cadangan**, tanpa tab baru. Grafik memakai log yang benar-benar tercatat dan dapat menunjukkan kenaikan galat maupun penolakan kandidat.
+
+Pusat tetap bekerja saat dashboard ditutup, selama **mesin pusat, broker, dan HP pengukur tetap aktif**. HP yang benar-benar mati tidak dapat mengirim data. Browser pengukur yang tabnya ditutup juga tidak dijamin tetap berjalan. Panduan [ketersediaan perangkat](docs/AVAILABILITY.md) menyediakan pilihan Termux untuk Android serta penjelasan batasnya.
+
+| Panduan v5 | Isi |
+|---|---|
+| [Mulai di sini](docs/MULAI_DI_SINI_V5.md) | Instalasi, penggunaan rutin, pemeriksaan grafik, backup, dan pemecahan masalah |
+| [Arsitektur dan AI](docs/ARSITEKTUR_V5.md) | Sensor, MQTT, penyimpanan pusat, Ridge, K-Means, evaluasi, dan batas interpretasi |
+| [Migrasi dari v4](docs/MIGRASI_V4_V5.md) | Cadangan lama, data historis, dan file yang di-commit |
+| [Publikasi](docs/PUBLISHING.md) | Antrean GitHub, manifest/checksum, workflow Pages, dan rollback |
+| [Ketersediaan perangkat](docs/AVAILABILITY.md) | Sambungan ulang, tab tersembunyi, layar mati, dan layanan Termux |
+| [Validasi v5](docs/VALIDASI_V5.md) | Hasil pengujian aktual dan batas verifikasi |
+| [Perubahan v5](CHANGELOG.md) | Perubahan dari ZIP sumber versi 4.1.0 |
+
+`python server.py` di panduan lama hanya menyajikan website. Untuk pembelajaran pusat, gunakan `npm run central`. Publikasi GitHub/Pages memerlukan konfigurasi akun pengguna; paket ZIP tidak otomatis mengubah website kelompok.
+
+## Fitur peta yang dipertahankan dari v4.1: Mode Heatmap
 
 Pilihan **Mode Heatmap** berada di samping **Peta jalan**. Area warnanya mengikuti sebaran pengamatan: **ungu = beban relatif rendah**, **hijau kebiruan = sedang**, dan **kuning = tinggi**. Area tanpa warna belum didukung data; titik abu-abu tidak ikut membentuk warna. Legenda lengkap tampil di bawah peta.
 
@@ -12,11 +40,11 @@ Heatmap memakai kategori K-Means aktif yang dihaluskan dengan radius 35 m. Perhi
 
 Untuk mencoba, aktifkan **Contoh lokal**, lalu tekan **Mode Heatmap**. Untuk data nyata, aktifkan berbagi lokasi pada HP. Peta jalan OpenStreetMap memerlukan jaringan; jika tile gagal dimuat, lapisan heatmap tetap dapat digunakan pada latar polos. Lihat [panduan Heatmap](docs/HEATMAP.md) untuk arti warna, syarat data, batas akurasi, dan cara kerja.
 
-## Versi 4.0: model bawaan dan pembelajaran otomatis
+## Mode lokal lama v4: model bawaan dan pembelajaran browser
 
-Versi ini menggabungkan **Ridge Regression untuk prediksi RTT berikutnya** dan **K-Means untuk kategori beban koneksi relatif**. Kategori dashboard memakai centroid yang dipelajari, menggantikan batas RTT 150/500 ms. Model awal dimuat otomatis; pengguna tidak perlu membuka tab ML atau menekan tombol training.
+Bagian ini menjelaskan mode lokal lama, bukan penyimpanan pusat v5. Mode tersebut menggabungkan **Ridge Regression untuk prediksi RTT berikutnya** dan **K-Means untuk kategori beban koneksi relatif**. Kategori dashboard memakai centroid yang dipelajari, menggantikan batas RTT 150/500 ms. Model awal dimuat otomatis; pengguna tidak perlu membuka tab ML atau menekan tombol training.
 
-Jalankan `python server.py --port 8000`, lalu buka `http://localhost:8000/dashboard.html`. Hubungkan kedua HP seperti panduan di bawah. Ringkasan ML berada di halaman peta. Setelah enam RTT terbaru valid, model dapat memprediksi; pengumpulan lebih panjang dipakai untuk menyesuaikan model secara otomatis. Kandidat baru diperiksa pada pengukuran berikutnya sebelum menggantikan model aktif.
+Jalankan `python server.py --port 8000`, lalu buka `http://localhost:8000/dashboard.html`. Untuk memakai mode lama ini, buka pengaturan layanan pusat dan pilih **Lokal pada browser ini (versi lama)** secara eksplisit. Hubungkan kedua HP seperti panduan di bawah. Ringkasan ML berada di halaman peta. Setelah enam RTT terbaru valid, model dapat memprediksi; pengumpulan lebih panjang dipakai untuk menyesuaikan model secara otomatis. Kandidat baru diperiksa pada pengukuran berikutnya sebelum menggantikan model aktif.
 
 **Model bawaan berasal dari data sintetis**, karena arsip sumber belum berisi histori jaringan nyata kelompok. Label asal model tetap ditampilkan. Hasil sintetis tidak membuktikan akurasi Wi-Fi kelompok; penggunaan berulang juga tidak menjamin setiap model baru lebih baik.
 
@@ -44,7 +72,7 @@ Model bawaan sintetis dapat dibuat ulang melalui `node scripts/build-default-mod
 2. [Farrel Athaya Firdaus] — [24060125120009]
 3. [Masirotuzzaman Fatwa Gemintang] — [24060125120001]
 
-## Cara kerja
+## Jalur edge dan broker yang dipertahankan
 
 ```mermaid
 flowchart TB
@@ -56,7 +84,7 @@ flowchart TB
 
 > Diagram di atas adalah konfigurasi yang dipakai kelompok kami: **broker HiveMQ pribadi** (Docker di laptop) yang dipublikasikan dengan **ngrok**. Untuk broker publik/cloud biasa, ganti blok "ngrok + HiveMQ CE" dengan satu broker cloud (lihat bagian 0, Opsi 1).
 
-Setiap HP membaca dua sensor, menghitung hasil dalam window, dan melakukan probe ke broker. Dashboard menerima telemetri serta mengirim **Ukur sekarang** atau **Ubah interval** ke HP terpilih. HP membalas ACK; hasil pengukuran diperiksa pada telemetri berikutnya.
+Pada versi 5, layanan pusat juga berlangganan telemetri dari broker yang sama. Setiap HP membaca dua sensor, menghitung hasil dalam window, dan melakukan probe ke broker. Dashboard menerima telemetri serta mengirim **Ukur sekarang** atau **Ubah interval** ke HP terpilih. HP membalas ACK; hasil pengukuran diperiksa pada telemetri berikutnya.
 
 MQTT adalah protokol; HiveMQ/EMQX adalah broker; JSON adalah format payload. ID perangkat harus berbeda, sedangkan ID proyek dan alamat broker harus sama.
 
@@ -185,13 +213,13 @@ INTERVAL_S=5
 - **Laptop harus tetap menyala** dengan Docker (container `hivemq`) dan ngrok berjalan selama pengukuran. Jika laptop tidur atau ngrok berhenti, kedua HP akan terputus dan data dianggap tidak real-time.
 - **Latency termasuk jalur ngrok.** Rute HP → ngrok → laptop → ngrok → HP menambah waktu perjalanan dibanding broker cloud langsung. Gunakan broker dan jalur yang sama untuk semua titik agar perbandingan tetap adil, dan catat konfigurasi ini dalam laporan.
 - **Dengan ngrok, laptop dan HP tidak wajib satu Wi-Fi** untuk jalur broker, karena HP mengakses internet publik. Dashboard lokal (`localhost:8000`) tetap berjalan di laptop, dan HP pengukur Opsi A tetap memerlukan halaman HTTPS.
-- **Keamanan:** URL ngrok bersifat publik; siapa pun yang mengetahuinya dapat menyambung ke broker. Konfigurasi bawaan HiveMQ CE tidak memakai autentikasi. Rahasiakan URL, gunakan Project ID yang sulit ditebak, dan hentikan tunnel setelah pengujian selesai. Jangan membagikan URL di tempat umum.
+- **Keamanan:** URL ngrok bersifat publik; siapa pun yang mengetahuinya dapat menyambung ke broker. Konfigurasi bawaan HiveMQ CE tidak memakai autentikasi. Project ID dan URL bukan pengganti autentikasi. Gunakan akun/ACL broker untuk membatasi pengirim bila diperlukan, dan hentikan tunnel setelah pengujian selesai.
 - **Gagal terhubung?** Periksa berurutan: (1) `docker ps` menunjukkan `hivemq` aktif; (2) log HiveMQ memuat WebSocket listener; (3) `ngrok http 8083` aktif (bukan 8000 atau 1883); (4) URL diawali `wss://` dan diakhiri `/mqtt`; (5) tidak ada spasi atau `/` tambahan; (6) Project ID sama di semua perangkat.
 - **Menghentikan layanan:** tekan `Ctrl+C` pada ngrok, lalu `docker stop hivemq` (atau `docker compose down`).
 
 ---
 
-## 1. Laptop — buka dashboard
+## 1. Alternatif lama — dashboard statis tanpa layanan pusat
 
 Ekstrak folder proyek. Untuk dashboard lokal, gunakan **Python 3.10+** di laptop; tidak perlu memasang dependensi Python untuk server ini.
 
@@ -215,12 +243,12 @@ Gunakan opsi yang sama pada kedua HP untuk percobaan awal. Kedua opsi memakai da
 
 ### Opsi A: Browser HP (tanpa Termux)
 
-1. Terbitkan **isi folder proyek** ke hosting HTTPS, misalnya GitHub Pages. `index.html` harus berada di root, dengan folder `assets/` lengkap dan `.nojekyll`.
+1. Terbitkan website melalui workflow Pages yang disertakan versi 5. Build `node scripts/build-public.cjs` menghasilkan folder `public-dist` berisi aset yang boleh di-host; jangan menjadikan seluruh root repository/database sebagai aset publik. Ikuti [panduan publikasi](docs/PUBLISHING.md).
 2. Buka halaman `index.html` melalui HTTPS di dua HP. Setelah upload/deployment repository kelompok berhasil, alamatnya adalah **https://faadd.github.io/SigHeat/**. ZIP revisi tidak otomatis mengubah situs tersebut.
 3. Isi ID `hp-a` pada HP A dan `hp-b` pada HP B. Isi Project ID, broker, dan kredensial yang sama dengan dashboard.
 4. Pilih pembagian lokasi sebelum mulai jika ingin memetakan titik. Lokasi tidak diperlukan untuk menampilkan hasil pada tabel.
 5. Tekan **Mulai pengukuran** dan berikan izin gerakan/orientasi serta lokasi jika dipilih. Tunggu data accelerometer dan gyroscope tersedia.
-6. Biarkan halaman terlihat dan layar aktif. Saat tab tersembunyi, sesi dijeda; setelah kembali, tekan mulai lagi.
+6. Biarkan halaman terlihat dan layar aktif. Saat tab tersembunyi, sesi dijeda. Saat terlihat kembali, sesi dapat dilanjutkan otomatis sebagai boot baru. Menutup tab menghentikan pengukur; setelah membuka ulang, tekan mulai lagi.
 
 Tidak perlu memasang aplikasi, Python, PWA, atau ekstensi pada HP. Jika gyroscope tidak tersedia, jangan menggantinya dengan angka nol; gunakan HP/browser yang mendukung atau Opsi B.
 
@@ -241,7 +269,7 @@ Isi `.env` pada masing-masing HP:
 
 ```dotenv
 PROJECT_ID=sigheat_kelompok_07
-MQTT_WSS_URL= wss://theft-footing-deflected.ngrok-free.dev/mqtt(Non-Public) ATAU wss://broker.hivemq.com:8884/mqtt (Public)
+MQTT_WSS_URL=wss://broker.hivemq.com:8884/mqtt
 MQTT_USERNAME=
 MQTT_PASSWORD=
 INTERVAL_S=5
@@ -290,7 +318,10 @@ Sumber browser dan Termux dapat berada dalam satu proyek, tetapi untuk perbandin
 | `assets/ml.js`, `assets/clusters.js` | Regresi Ridge dan kategori koneksi dari K-Means |
 | `assets/learning.js`, `assets/ml-ui.js` | Pembelajaran otomatis, persistensi, dan ringkasan di peta |
 | `dashboard.html`, `assets/app.js` | Pemantauan, kontrol, peta/tabel, ekspor |
-| `server.py` | Server dashboard lokal opsional |
+| `server/index.cjs`, `server/engine.cjs` | Layanan pusat v5, penerimaan data, training, dan API |
+| `server/publisher.cjs` | Antrean publikasi parameter model ke GitHub/Pages |
+| `assets/central-client.js`, `assets/central-ui.js` | Sinkronisasi model dan grafik bukti di dashboard |
+| `server.py` | Server statis lama opsional; tidak menjalankan training pusat |
 | `conf/config.xml` | Konfigurasi WebSocket listener HiveMQ CE (Docker) |
 
 Dokumentasi: [Protokol dan algoritma](docs/PROTOCOL.md) · [Rubrik/demo](docs/RUBRIC_AND_DEMO.md) · [Validasi versi 4](docs/RELEASE_VALIDATION.md) · [Brief IoT](docs/PRESENTATION_BRIEF.md) · [Presentasi AI](docs/AI_PRESENTASI.md) · [Perubahan](docs/CHANGELOG.md).

@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 import re
 import secrets
+import signal
 import threading
 import time
 from urllib.parse import urlsplit, unquote
@@ -105,6 +106,9 @@ class TermuxEdge:
         self.recent = OrderedDict()
         self.last_command = self.last_sample = -float('inf')
         self.failure = None
+        self.connection_epoch = 0
+        self.subscribe_started = None
+        self.has_connected = False
 
     def timestamp(self):
         return int(self.wall() * 1000)
@@ -137,7 +141,8 @@ class TermuxEdge:
         mqtt = self.mqtt
         self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2,
             client_id='sigheat-' + secrets.token_hex(10), clean_session=True,
-            protocol=mqtt.MQTTv311, transport='websockets', reconnect_on_failure=False)
+            protocol=mqtt.MQTTv311, transport='websockets', reconnect_on_failure=True)
+        self.client.reconnect_delay_set(min_delay=1, max_delay=30)
         parsed = urlsplit(self.config.endpoint)
         self.client.ws_set_options(path=parsed.path or '/')
         self.client.tls_set()  # Trusted CA + hostname verification enabled, never tls_insecure_set.
@@ -146,7 +151,7 @@ class TermuxEdge:
         self.client.max_queued_messages_set(20)
         self.client.will_set(self.base + '/status', json.dumps(self.status(False)), qos=0, retain=True)
         self.client.on_connect = self.on_connect
-        self.client.on_connect_fail = lambda client, userdata: self._fail('Broker tidak terjangkau.')
+        self.client.on_connect_fail = lambda client, userdata: self._connection_lost('Broker belum terjangkau; mencoba ulang otomatis (jeda maksimum 30 detik).')
         self.client.on_subscribe = self.on_subscribe
         self.client.on_message = self.on_message
         self.client.on_disconnect = self.on_disconnect
@@ -162,23 +167,47 @@ class TermuxEdge:
             return
         result, mid = client.subscribe([(self.probe_topic, 0), (self.base + '/command', 0)])
         self.subscribe_mid = mid
+        self.subscribe_started = self.clock()
         if result != 0:
             self._fail('Permintaan subscribe gagal.')
 
     def on_subscribe(self, client, userdata, mid, reasons, properties):
-        if self.stopped.is_set() or mid != self.subscribe_mid:
+        if (self.stopped.is_set() or mid != self.subscribe_mid or
+                self.subscribe_started is None or not client.is_connected()):
             return
         if len(reasons) != 2 or any(reason.is_failure for reason in reasons):
             self._fail('Broker menolak langganan probe atau command.')
             return
+        if self.has_connected:
+            # Discard accumulated sensor/probe statistics across an outage. The
+            # sequence gap inserted on disconnect also prevents a Ridge window
+            # from joining observations either side of that outage.
+            self.sensors.snapshot()
+            self.probes = ProbeWindow()
+        self.has_connected = True
+        self.subscribe_started = None
         self.ready.set()
         self.setup_done.set()
+        self.wake.set()
         self._publish(self.base + '/status', self.status(True), retained=True)
         self.log('MQTT WSS siap: langganan probe dan command dikonfirmasi.')
 
+    def _connection_lost(self, message):
+        if self.stopped.is_set():
+            return
+        with self.lock:
+            if self.ready.is_set():
+                self.sequence += 1  # Missing sequence is intentional; no fabricated telemetry.
+            self.connection_epoch += 1
+            self.ready.clear()
+            self.subscribe_started = None
+            self.pending = None
+            self.probe_event.set()
+            self.wake.set()
+        self.log(message)
+
     def on_disconnect(self, client, userdata, flags, reason, properties):
-        if not self.stopped.is_set():
-            self._fail('Koneksi MQTT terputus. Jalankan ulang setelah jaringan pulih.')
+        self._connection_lost('MQTT terputus. Pengukuran dijeda; menyambung ulang otomatis setelah jaringan pulih.')
 
     def on_message(self, client, userdata, message):
         if self.stopped.is_set() or message.retain or len(message.payload) > 16384:
@@ -259,10 +288,16 @@ class TermuxEdge:
         try:
             self.sensors.start()
             self.connect()
-            if not self.setup_done.wait(15) or not self.ready.is_set():
-                raise RuntimeError(self.failure or 'Broker tidak memberikan SUBACK dalam 15 detik.')
             next_sample = self.clock() + .5
             while not self.stopped.is_set():
+                if not self.ready.is_set():
+                    if self.subscribe_started is not None and self.clock() - self.subscribe_started > 15:
+                        self._fail('Broker tidak memberikan SUBACK dalam 15 detik. Periksa ACL.')
+                        break
+                    self.wake.wait(1)
+                    self.wake.clear()
+                    next_sample = self.clock() + .5
+                    continue
                 self.wake.wait(max(0, next_sample - self.clock()))
                 self.wake.clear()
                 if self.stopped.is_set():
@@ -270,14 +305,22 @@ class TermuxEdge:
                 if self.clock() - self.last_sample < 2:
                     next_sample = self.last_sample + 2
                     continue
+                epoch = self.connection_epoch
                 latency = self.measure_probe()
                 if self.stopped.is_set():
                     break
-                payload = self.make_payload(latency)
-                self._publish(self.base + '/telemetry', payload)
+                with self.lock:
+                    if not self.ready.is_set() or epoch != self.connection_epoch:
+                        # A probe interrupted by transport loss is not a new RTT
+                        # observation; never replay it as a fresh sample on reconnect.
+                        continue
+                    payload = self.make_payload(latency)
+                    sent = self._publish(self.base + '/telemetry', payload)
                 self.log(f"#{self.sequence} RTT={payload['latency_ms']} ms | "
                          f"accel={payload['accel_available']} gyro={payload['gyro_available']} | "
                          f"errors={','.join(payload['sensor_errors']) or 'none'}")
+                if not sent:
+                    self.log('Telemetri tidak terkirim; tidak diantrekan sebagai pengukuran baru setelah reconnect.')
                 next_sample = self.last_sample + self.config.interval_s
             if self.failure:
                 raise RuntimeError(self.failure)
@@ -345,7 +388,14 @@ def main(argv=None):
         print(f'SigHeat Termux | {config.device_id} | RTT aplikasi MQTT, bukan RSSI/dBm.')
         if args.share_location:
             print('Berbagi GPS aktif. Broker publik dapat dibaca pihak lain.')
-        TermuxEdge(config, sensors).run()
+        previous_term = signal.getsignal(signal.SIGTERM)
+        def terminate(signum, frame):
+            raise KeyboardInterrupt
+        signal.signal(signal.SIGTERM, terminate)
+        try:
+            TermuxEdge(config, sensors).run()
+        finally:
+            signal.signal(signal.SIGTERM, previous_term)
         return 0
     except KeyboardInterrupt:
         print('Pengukuran dihentikan.')

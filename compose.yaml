@@ -1,0 +1,15 @@
+services:
+  central:
+    build: .
+    restart: unless-stopped
+    env_file: .env.central
+    environment:
+      SIGHEAT_HOST: 0.0.0.0
+      SIGHEAT_DATA_DIR: /var/lib/sigheat
+    ports:
+      - "127.0.0.1:8787:8787"
+    volumes:
+      - sigheat-data:/var/lib/sigheat
+    stop_grace_period: 30s
+volumes:
+  sigheat-data:

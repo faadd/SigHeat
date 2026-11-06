@@ -1,10 +1,10 @@
 {
   "name": "sigheat",
-  "version": "4.1.0",
+  "version": "5.0.0",
   "private": true,
-  "description": "SigHeat MQTT monitoring with automatic persistent learning and a free local geographic heatmap",
+  "description": "SigHeat with durable centralized MQTT learning, shared versioned models and auditable MAE graphs",
   "engines": {
-    "node": ">=18"
+    "node": ">=24"
   },
   "scripts": {
     "test": "node --test tests/*.cjs",
@@ -13,6 +13,19 @@
     "ml:train": "node scripts/train-ml.cjs",
     "ml:build-default": "node scripts/build-default-model.cjs",
     "ml:build-clusters": "node scripts/build-cluster-default.cjs",
-    "ml:build-seed": "node scripts/build-learning-seed.cjs"
+    "ml:build-seed": "node scripts/build-learning-seed.cjs",
+    "central": "node --env-file=.env.central server/index.cjs",
+    "central:backup": "node --env-file=.env.central scripts/central-admin.cjs backup",
+    "central:restore": "node --env-file=.env.central scripts/central-admin.cjs restore",
+    "central:rollback": "node --env-file=.env.central scripts/central-admin.cjs rollback",
+    "central:retry": "node --env-file=.env.central scripts/central-admin.cjs retry",
+    "build:public": "node scripts/build-public.cjs"
+  },
+  "dependencies": {
+    "mqtt": "5.16.1"
+  },
+  "devDependencies": {
+    "aedes": "1.2.0",
+    "jsdom": "26.1.0"
   }
 }

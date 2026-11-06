@@ -7,6 +7,7 @@
     <title>SigHeat · Peta koneksi</title>
     <link rel="stylesheet" href="assets/vendor/leaflet.css" />
     <link rel="stylesheet" href="assets/style.css" />
+    <link rel="stylesheet" href="assets/central-ui.css" />
   </head>
   <body data-page="dashboard">
     <a class="skip-link" href="#main">Lewati navigasi</a>
@@ -314,6 +315,46 @@
                 <p id="ml-data-note">Data baru diproses otomatis; pengguna tidak perlu menekan tombol training.</p>
                 <p id="ml-candidate-note">Kandidat model diperiksa pada pengukuran baru sebelum dipakai.</p>
                 <p class="small muted">Ridge memprediksi RTT berikutnya. KMeans mengelompokkan beban koneksi tanpa label buatan 150/500 ms. Model awal berasal dari data sintetis dan belum tervalidasi pada jaringan ini. Data contoh tidak masuk pembelajaran nyata.</p>
+                <section id="central-learning" class="central-learning" aria-labelledby="central-title">
+                  <div class="central-heading"><div><h3 id="central-title">Riwayat pembelajaran bersama</h3><p class="small muted">Bukti dari layanan pusat. Grafik dapat naik atau turun; data contoh tidak disertakan.</p></div><button type="button" class="btn" id="central-refresh">Perbarui sekarang</button></div>
+                  <details id="central-settings"><summary>Atur layanan pusat</summary>
+                    <form id="central-config-form" class="central-form">
+                      <label>Mode pembelajaran<select id="central-mode"><option value="central">Terpusat</option><option value="local">Lokal pada browser ini (versi lama)</option></select></label>
+                      <label>URL layanan pusat<input id="central-api-url" type="url" placeholder="http://localhost:8787" autocomplete="url" /></label>
+                      <label>Kunci baca API (jika diatur)<input id="central-read-key" type="password" autocomplete="off" placeholder="Tidak perlu untuk server lokal tanpa kunci" /></label>
+                      <label>Manifest model terbitan (opsional, mengganti sumber model)<input id="central-manifest-url" type="url" placeholder="https://nama.github.io/SigHeat/models/latest.json" /></label>
+                      <button type="submit" class="btn primary">Simpan koneksi pusat</button>
+                    </form><p class="small muted">Kosongkan manifest untuk memakai model dari URL layanan pusat; jika kedua URL kosong, model diambil dari website ini. Kunci baca hanya disimpan selama sesi tab ini. Jangan masukkan token GitHub. Model pusat tidak dilatih ulang di browser. Jika pusat gagal dihubungi, cache valid terakhir tetap dipakai.</p>
+                  </details>
+                  <p id="central-message" role="status" aria-live="polite">Atur layanan pusat untuk melihat riwayat bersama.</p>
+                  <div class="central-status-grid">
+                    <div><span>Layanan pusat</span><strong id="central-service-state">Belum diatur</strong><small id="central-service-note"></small></div>
+                    <div><span>Model pada dashboard</span><strong id="central-model-state">Model awal sintetis</strong><small id="central-sync-note"></small></div>
+                    <div><span>Publikasi GitHub / Pages</span><strong id="central-publish-state">Belum diperiksa</strong><small id="central-publish-note"></small></div>
+                  </div>
+                  <details id="central-filters" open><summary>Filter bukti pengukuran</summary><div class="central-filter-grid">
+                    <label>Proyek<select id="central-project"><option value="">Semua proyek</option></select></label>
+                    <label>Perangkat<select id="central-device"><option value="">Semua perangkat</option></select></label>
+                    <label>Sumber<select id="central-source"><option value="">Semua sumber</option></select></label>
+                    <label>Broker<select id="central-broker"><option value="">Semua broker</option></select></label>
+                    <label>Interval<select id="central-interval"><option value="">Semua interval</option></select></label>
+                    <label class="central-wide">Konteks grafik<select id="central-context"><option value="">Pilih konteks</option></select></label>
+                    <label>Dari waktu<input id="central-from" type="datetime-local" /></label>
+                    <label>Sampai waktu<input id="central-through" type="datetime-local" /></label>
+                    <label>Zona waktu<select id="central-timezone"><option value="Asia/Jakarta">Asia/Jakarta (UTC+7)</option><option value="UTC">UTC</option></select></label>
+                    <label>Model<select id="central-model-filter"><option value="">Semua model</option></select></label>
+                    <label>Status kandidat<select id="central-candidate-filter"><option value="">Semua keputusan</option><option value="evaluating">Sedang dievaluasi</option><option value="promoted">Diterima</option><option value="rejected">Ditolak</option><option value="training_failed">Training gagal</option><option value="cancelled">Dibatalkan</option></select></label>
+                  </div></details>
+                  <p class="small muted" id="central-range-note">Belum ada log pusat.</p>
+                  <fieldset class="central-series"><legend>Garis pembanding pada grafik</legend><label><input type="checkbox" data-central-series="active" checked /> Metode aktif</label><label><input type="checkbox" data-central-series="frozen" checked /> Model awal beku</label><label><input type="checkbox" data-central-series="persistence" /> RTT terakhir</label><label><input type="checkbox" data-central-series="moving_average" checked /> Rerata 6 RTT</label></fieldset>
+                  <section class="central-chart-card"><div class="central-heading"><h4>RTT aktual dan prediksi yang tercatat</h4><button type="button" class="btn compact" data-central-svg="central-rtt-chart">Unduh SVG</button></div><p class="small muted">Prediksi dibuat sebelum target tiba. Garis terputus menunjukkan target/prediksi yang tidak dapat dipasangkan; bukan RTT nol.</p><div id="central-rtt-chart" class="central-chart"></div></section>
+                  <section class="central-chart-card"><div class="central-heading"><h4>MAE per 24 target valid</h4><button type="button" class="btn compact" data-central-svg="central-mae-chart">Unduh SVG</button></div><p class="small muted">Blok tidak tumpang tindih. Semua garis dibandingkan pada target yang sama. Blok dengan pergantian versi dilabeli campuran.</p><div id="central-mae-chart" class="central-chart"></div></section>
+                  <section class="central-chart-card"><div class="central-heading"><h4>Perbandingan setiap kandidat Ridge</h4><button type="button" class="btn compact" data-central-svg="central-candidate-chart">Unduh SVG</button></div><div id="central-candidate-chart" class="central-chart"></div><div id="central-candidates-table" class="central-table-wrap"></div></section>
+                  <section class="central-chart-card"><div class="central-heading"><h4>Evaluasi K-Means</h4><button type="button" class="btn compact" data-central-svg="central-cluster-chart">Unduh SVG</button></div><p class="small muted">Rata-rata jarak kuadrat pada ruang fitur tetap. Ini ukuran clustering, bukan persentase akurasi label kualitas. K-Means dibagi bersama dalam konteks proyek, sumber, broker, dan interval yang sama.</p><div id="central-cluster-counts"></div><div id="central-cluster-chart" class="central-chart"></div><div id="central-clusters-table" class="central-table-wrap"></div></section>
+                  <details class="central-timeline"><summary>Riwayat training, keputusan, dan versi model</summary><div id="central-timeline-table" class="central-table-wrap"></div><details><summary>Periksa parameter dan metadata model</summary><pre id="central-model-parameters">Belum ada paket model pusat.</pre></details></details>
+                  <div class="ml-downloads"><button type="button" class="btn" id="central-export-csv">Unduh log terfilter (CSV)</button><button type="button" class="btn" id="central-export-json">Unduh metadata &amp; model (JSON)</button><button type="button" class="btn" id="central-export-all">Unduh seluruh arsip pusat (JSON)</button></div>
+                  <p class="small muted">CSV memuat prediksi dan target agar MAE dapat dihitung ulang. Ekspor grafik menyertakan waktu, satuan, konteks, jendela, jumlah target, dan versi. Cadangan database dilakukan pada mesin pusat.</p>
+                </section>
                 <details class="ml-evidence"><summary>Bukti evaluasi model aktif</summary><pre id="ml-evaluation">Belum ada evaluasi pengukuran nyata.</pre></details>
                 <div class="ml-downloads">
                   <button class="btn" id="ml-export-data" disabled>Unduh dataset perangkat (CSV)</button>
@@ -552,6 +593,9 @@
     <script src="assets/clusters.js"></script>
     <script src="assets/learning.js"></script>
     <script src="assets/learning-seed.js"></script>
+    <script src="assets/central-config.js"></script>
+    <script src="assets/central-client.js"></script>
+    <script src="assets/central-ui.js"></script>
     <script src="assets/ml-ui.js"></script>
     <script src="assets/heatmap.js"></script>
     <script src="assets/heatmap-layer.js"></script>

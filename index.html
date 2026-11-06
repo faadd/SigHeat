@@ -62,7 +62,7 @@ python termux_edge.py --check-sensors</pre
           Ganti Project ID contoh agar sama dengan dashboard kelompok.
         </p>
         <pre class="code-block">
-python termux_edge.py hp-a --project sigheat_kelompok_07</pre
+bash scripts/termux-run.sh hp-a --project sigheat_kelompok_07</pre
         >
         <p>
           Secara bawaan, edge menggunakan broker WSS publik yang tertera pada
@@ -70,6 +70,13 @@ python termux_edge.py hp-a --project sigheat_kelompok_07</pre
           <span class="mono">.env</span> bila memakai akun kelompok. Tambahkan
           <span class="mono">--share-location</span> hanya jika ingin membagikan
           koordinat untuk peta.
+        </p>
+        <p>
+          Skrip meminta wake lock agar proses Termux dapat berjalan saat layar
+          mati. Browser boleh ditutup; jangan paksa berhenti aplikasi Termux.
+          HP yang benar-benar mati tetap tidak bisa mengirim data. Untuk layanan
+          latar belakang yang dikelola otomatis, ikuti
+          <span class="mono">docs/AVAILABILITY.md</span> di ZIP.
         </p>
         <p>
           Gunakan dua Browser atau dua Termux pada satu jaringan untuk
@@ -181,9 +188,12 @@ python termux_edge.py hp-a --project sigheat_kelompok_07</pre
             </div>
             <p class="step-copy">
               Letakkan HP pada titik uji dan tunggu beberapa sampel. Pengukuran
-              dijeda saat tab berada di latar belakang; mulai kembali saat Anda
-              siap.
+              dijeda saat tab tidak terlihat dan otomatis memulai sesi baru
+              ketika Anda kembali. Gangguan jaringan dicoba ulang otomatis.
             </p>
+            <label class="share-location-label"><input type="checkbox" id="edge-keep-awake" checked /> Jaga layar tetap menyala jika didukung browser</label>
+            <p class="small muted" id="edge-wake-state" aria-live="polite">Penahan layar hanya bekerja saat tab terlihat. Menutup tab atau mematikan HP menghentikan pengukuran browser.</p>
+            <p class="small muted">Untuk Android saat layar mati atau browser ditutup, jalankan opsi Termux. Sistem Android tetap dapat menghentikan aplikasi. <a href="#termux-option">Lihat panduan Termux</a>.</p>
             <p class="form-error" id="edge-error" role="alert"></p>
             <div class="edge-actions">
               <button class="btn primary" id="edge-start" type="submit">
